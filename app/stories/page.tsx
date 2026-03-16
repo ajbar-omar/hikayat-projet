@@ -17,6 +17,7 @@ export default function InteractiveStoryPage() {
     link.rel = 'stylesheet'
     document.head.appendChild(link)
   }, [])
+  
 
   useEffect(() => {
     const handleWheel = (e: WheelEvent) => {
