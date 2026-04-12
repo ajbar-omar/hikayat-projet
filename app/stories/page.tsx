@@ -1,186 +1,138 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
+import { motion } from 'framer-motion'
 
-export default function InteractiveStoryPage() {
+export default function StoriesLibrary() {
+  const [profile, setProfile] = useState<any>(null)
   const [stories, setStories] = useState([])
-  const [selectedStory, setSelectedStory] = useState(null)
-  const [scenes, setScenes] = useState([])
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const isTransitioning = useRef(false)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchStories()
-    // إضافة خطوط أنيقة للمكتبة
-    const link = document.createElement('link')
-    link.href = 'https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=IBM+Plex+Sans+Arabic:wght@400;700&display=swap'
-    link.rel = 'stylesheet'
-    document.head.appendChild(link)
+    async function loadData() {
+      // 1. كنجيبو السيسيون ديال المستخدم
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (session?.user) {
+        // 2. كنجيبو البروفايل اللي عمرنا فـ SQL
+        const { data: profData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single()
+
+        setProfile(profData)
+
+        // 3. كنجيبو كاع القصص
+        const { data: storyList } = await supabase
+          .from('stories')
+          .select('*')
+          .order('created_at', { ascending: false })
+        
+        setStories(storyList || [])
+      } else {
+        window.location.href = '/auth'
+      }
+      setLoading(false)
+    }
+    loadData()
   }, [])
-  
 
-  useEffect(() => {
-    const handleWheel = (e: WheelEvent) => {
-      if (!selectedStory || isTransitioning.current) return
-      if (e.deltaY > 50) nextScene()
-      else if (e.deltaY < -50) prevScene()
-    }
-    window.addEventListener('wheel', handleWheel)
-    return () => window.removeEventListener('wheel', handleWheel)
-  }, [selectedStory, currentIndex, scenes.length])
+  if (loading) return (
+    <div className="h-screen flex items-center justify-center bg-[#faf7f4] font-bold text-[#7c5c3e]">
+      جاري فتح عالم الحكايات... ✨
+    </div>
+  )
 
-  async function fetchStories() {
-    const { data } = await supabase.from('stories').select('*').order('created_at', { ascending: false })
-    setStories(data || [])
-  }
+  return (
+    <div className="flex min-h-screen bg-[#faf7f4]" style={{ direction: 'rtl' }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;700&display=swap');
+        body { font-family: 'IBM Plex Sans Arabic', sans-serif; }
+      `}</style>
 
-  async function handleOpenStory(story) {
-    const { data } = await supabase.from('scenes').select('*').eq('story_id', story.id).order('order_index', { ascending: true })
-    setScenes(data || [])
-    setSelectedStory(story)
-    setCurrentIndex(0)
-  }
+      {/* --- Sidebar اليميني (النافيغاسيون) --- */}
+      <nav className="w-64 bg-white border-l border-orange-100 flex flex-col p-8 shadow-2xl z-20">
+        <div className="mb-12 text-center">
+          <div className="w-24 h-24 rounded-full border-4 border-[#7c5c3e] mx-auto overflow-hidden bg-orange-50 mb-4 shadow-lg">
+            {profile?.avatar_url ? (
+              <img src={profile.avatar_url} className="w-full h-full object-cover" alt="avatar" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-3xl font-bold text-[#7c5c3e]">
+                {profile?.kid_name?.charAt(0) || '؟'}
+              </div>
+            )}
+          </div>
+          <h2 className="font-black text-[#3a2a1a] text-xl mb-1">{profile?.kid_name || 'بطلنا الصغير'}</h2>
+          <p className="text-sm text-[#a07850] font-bold italic">@{profile?.child_username}</p>
+        </div>
 
-  const nextScene = () => {
-    if (currentIndex < scenes.length - 1) {
-      isTransitioning.current = true
-      setCurrentIndex(prev => prev + 1)
-      setTimeout(() => { isTransitioning.current = false }, 1200)
-    }
-  }
+        <div className="space-y-4 flex-1">
+          <button className="w-full py-4 rounded-2xl font-bold bg-[#7c5c3e] text-white shadow-lg flex items-center px-6 gap-4">
+            <span>📚</span> المكتبة
+          </button>
+          
+          <button className="w-full py-4 rounded-2xl font-bold text-gray-400 hover:bg-orange-50 flex items-center px-6 gap-4 transition">
+            <span>🏆</span> الإنجازات
+          </button>
 
-  const prevScene = () => {
-    if (currentIndex > 0) {
-      isTransitioning.current = true
-      setCurrentIndex(prev => prev - 1)
-      setTimeout(() => { isTransitioning.current = false }, 1200)
-    }
-  }
+          <button className="w-full py-4 rounded-2xl font-bold text-gray-400 hover:bg-orange-50 flex items-center px-6 gap-4 transition">
+            <span>⚙️</span> الإعدادات
+          </button>
+        </div>
 
-  // --- واجهة المكتبة (Premium Design) ---
-  if (!selectedStory) {
-    return (
-      <div style={{ minHeight: '100vh', background: '#faf7f4', padding: '80px 20px', direction: 'rtl', fontFamily: "'IBM Plex Sans Arabic', sans-serif" }}>
-        <header style={{ textAlign: 'center', marginBottom: '80px' }}>
-          <h1 style={{ fontFamily: "'Playfair Display', serif", fontSize: '56px', fontWeight: 900, color: '#3a2a1a', margin: '0' }}>مكتبة الحكايات</h1>
-          <p style={{ color: '#a07850', fontSize: '18px', marginTop: '10px', letterSpacing: '1px' }}>غص في أعماق الخيال</p>
-          <div style={{ width: '60px', height: '4px', background: '#7c5c3e', margin: '25px auto', borderRadius: '2px' }}></div>
+        <button 
+          onClick={() => supabase.auth.signOut().then(() => window.location.href='/auth')}
+          className="mt-auto w-full py-4 rounded-2xl font-bold text-red-400 hover:bg-red-50 transition flex items-center px-6 gap-4"
+        >
+          <span>🚪</span> خروج
+        </button>
+      </nav>
+
+      {/* --- المحتوى الرئيسي (المكتبة) --- */}
+      <main className="flex-1 p-16 overflow-y-auto">
+        <header className="mb-16 text-right">
+          <h1 className="text-5xl font-black text-[#3a2a1a] mb-4 leading-tight">
+            مرحباً بطلنا {profile?.kid_name}! 👋
+          </h1>
+          <p className="text-[#a07850] text-xl font-medium">اختر حكاية وانطلق في مغامرة عبر الزمن...</p>
         </header>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '40px', maxWidth: '1200px', margin: '0 auto' }}>
-          {stories.map(s => (
-            <div 
-              key={s.id} 
-              onClick={() => handleOpenStory(s)} 
-              style={{ 
-                background: '#fff', borderRadius: '30px', overflow: 'hidden', cursor: 'pointer', 
-                boxShadow: '0 15px 35px rgba(58,42,26,0.08)', border: '1px solid #e8ddd3',
-                transition: 'all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1)'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-12px)'
-                e.currentTarget.style.boxShadow = '0 25px 50px rgba(58,42,26,0.15)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)'
-                e.currentTarget.style.boxShadow = '0 15px 35px rgba(58,42,26,0.08)'
-              }}
+        {/* شبكة الحكايات */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-12">
+          {stories.map((story: any) => (
+            <motion.div 
+              whileHover={{ y: -15, scale: 1.02 }} 
+              key={story.id} 
+              className="bg-white rounded-[45px] shadow-sm border border-orange-50 overflow-hidden cursor-pointer group hover:shadow-2xl transition-all duration-300"
+              onClick={() => window.location.href = `/stories/${story.id}`}
             >
-              {/* هنا التغيير: عرض الغلاف المرفوع */}
-              <div style={{ 
-                height: '240px', 
-                background: s.cover_url ? `url(${s.cover_url}) center/cover` : '#7c5c3e',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                position: 'relative'
-              }}>
-                {!s.cover_url && <span style={{ fontSize: '70px' }}>📖</span>}
-                <div style={{ position: 'absolute', bottom: '0', left: '0', width: '100%', height: '50%', background: 'linear-gradient(to top, rgba(0,0,0,0.3), transparent)' }}></div>
-              </div>
-
-              <div style={{ padding: '30px', textAlign: 'center' }}>
-                <h2 style={{ color: '#1a1a1a', fontSize: '24px', margin: '0 0 15px 0', fontWeight: '700' }}>{s.title}</h2>
-                <div style={{ display: 'inline-block', padding: '10px 30px', background: '#7c5c3e', color: '#fff', borderRadius: '100px', fontSize: '14px', fontWeight: 'bold', transition: '0.3s' }}>إبدأ القصة الآن</div>
-              </div>
-            </div>
+               <div className="h-60 bg-orange-100 overflow-hidden relative">
+                  <img 
+                    src={story.cover_url} 
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
+                    alt={story.title} 
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+               </div>
+               
+               <div className="p-8 text-center bg-white">
+                  <h3 className="text-2xl font-black text-[#3a2a1a] mb-6">{story.title}</h3>
+                  <button className="bg-[#7c5c3e] text-white px-8 py-4 rounded-[20px] font-black w-full shadow-lg shadow-orange-900/10 hover:bg-[#5a3e28] transition-all transform active:scale-95">
+                    ابدأ المغامرة الآن ←
+                  </button>
+               </div>
+            </motion.div>
           ))}
         </div>
-      </div>
-    )
-  }
 
-  // --- واجهة المشغل (Interaction Based) ---
-  return (
-    <div style={{ height: '100vh', width: '100vw', background: '#000', overflow: 'hidden', position: 'fixed' }}>
-      
-      <button 
-        onClick={() => setSelectedStory(null)} 
-        style={{ 
-          position: 'absolute', top: '40px', left: '40px', zIndex: 1000, 
-          background: 'rgba(255,255,255,0.9)', color: '#000', border: 'none', 
-          padding: '12px 28px', borderRadius: '100px', cursor: 'pointer', 
-          fontWeight: 'bold', backdropFilter: 'blur(10px)', boxShadow: '0 10px 20px rgba(0,0,0,0.2)',
-          transition: '0.3s'
-        }}
-        onMouseEnter={(e) => e.currentTarget.style.background = '#fff'}
-      >
-        ← المكتبة
-      </button>
-
-      {scenes.map((scene, index) => (
-        <div 
-          key={scene.id} 
-          style={{ 
-            position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-            opacity: index === currentIndex ? 1 : 0,
-            transform: index === currentIndex ? 'scale(1)' : 'scale(1.05)',
-            transition: 'opacity 1.2s ease-in-out, transform 2s ease-out',
-            visibility: index === currentIndex ? 'visible' : 'hidden',
-            zIndex: index === currentIndex ? 10 : 0
-          }}
-        >
-          <video autoPlay muted loop playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }}>
-            <source src={scene.video_url} type="video/mp4" />
-          </video>
-
-          {index === currentIndex && (
-            <audio autoPlay key={scene.audio_url}>
-              <source src={scene.audio_url} type="audio/mpeg" />
-            </audio>
-          )}
-
-          <div style={{ 
-            position: 'absolute', bottom: 0, width: '100%', 
-            padding: '150px 20px 100px', 
-            background: 'linear-gradient(to top, rgba(0,0,0,0.9) 20%, rgba(0,0,0,0.4) 60%, transparent)', 
-            textAlign: 'center', color: '#fff', direction: 'rtl' 
-          }}>
-            <p style={{ 
-              fontSize: '34px', maxWidth: '900px', margin: '0 auto', 
-              lineHeight: '1.7', textShadow: '0 4px 25px rgba(0,0,0,0.9)',
-              fontFamily: "'IBM Plex Sans Arabic', sans-serif",
-              fontWeight: '500'
-            }}>
-              {scene.content}
-            </p>
+        {/* إيلا ما كاينينش قصص */}
+        {stories.length === 0 && (
+          <div className="text-center py-20 bg-white/50 rounded-[50px] border-2 border-dashed border-orange-100">
+             <p className="text-gray-400 text-xl font-bold italic">قريباً.. حكايات جديدة في انتظارك!</p>
           </div>
-        </div>
-      ))}
-
-      {/* مؤشر النقط */}
-      <div style={{ position: 'absolute', right: '40px', top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: '12px', zIndex: 100 }}>
-        {scenes.map((_, i) => (
-          <div 
-            key={i} 
-            style={{ 
-              width: i === currentIndex ? '4px' : '4px', 
-              height: i === currentIndex ? '40px' : '12px', 
-              borderRadius: '10px', 
-              background: i === currentIndex ? '#7c5c3e' : 'rgba(255,255,255,0.3)', 
-              transition: 'all 0.5s ease' 
-            }} 
-          />
-        ))}
-      </div>
+        )}
+      </main>
     </div>
   )
 }
