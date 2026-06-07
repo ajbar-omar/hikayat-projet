@@ -9,6 +9,10 @@ export default function StoriesLibrary() {
   const [profile, setProfile] = useState<any>(null)
   const [stories, setStories] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [selectedLang, setSelectedLang] = useState("arabic") 
+  const [selectedStatus, setSelectedStatus] = useState("all") // 'all' | 'new' | 'in progress' | 'completed'
+  
   const pathname = usePathname()
 
   useEffect(() => {
@@ -16,7 +20,7 @@ export default function StoriesLibrary() {
       const { data: { session } } = await supabase.auth.getSession()
       
       if (session?.user) {
-        // جلب بيانات البروفايل والـ XP
+        // 1. جلب بيانات البروفايل والـ XP
         const { data: profData } = await supabase
           .from('profiles')
           .select('*')
@@ -25,13 +29,32 @@ export default function StoriesLibrary() {
 
         setProfile(profData)
 
-        // جلب القصص المتاحة
+        // 2. جلب القصص المتاحة من الـ Backend
         const { data: storyList } = await supabase
           .from('stories')
           .select('*')
           .order('created_at', { ascending: false })
+
+        // 3. جلب حالات القراءة الخاصة بهذا الطفل من جدول user_stories
+        const { data: userStoriesProgress } = await supabase
+          .from('user_stories')
+          .select('story_id, status')
+          .eq('profile_id', session.user.id)
+
+        const progressMap = new Map(
+          userStoriesProgress?.map(item => [item.story_id, item.status]) || []
+        )
+
+        // 4. دمج الحالات الديناميكية (Default هي New)
+        const mappedStories = (storyList || []).map((story) => {
+          const currentStatus = progressMap.get(story.id);
+          return {
+            ...story,
+            status: currentStatus || "New"
+          }
+        })
         
-        setStories(storyList || [])
+        setStories(mappedStories)
       } else {
         window.location.href = '/auth'
       }
@@ -40,108 +63,226 @@ export default function StoriesLibrary() {
     loadData()
   }, [])
 
+  // 🛠️ الفلترة الذكية (مقاومة تماماً لـ الـ Case Sensitivity بـ الحروف الصغار)
+  const filteredStories = stories.filter(story => {
+    const matchesSearch = story.title?.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesStatus = selectedStatus === "all" || story.status?.toLowerCase() === selectedStatus.toLowerCase()
+    const matchesLang = selectedLang === "arabic" 
+
+    return matchesSearch && matchesStatus && matchesLang
+  })
+
   if (loading) return (
-    <div className="h-screen flex items-center justify-center bg-[#faf7f4] font-bold text-[#7c5c3e] italic text-xl">
+    <div className="h-screen flex items-center justify-center bg-[#fffcf1] font-black text-[#c47529] italic text-xl">
       جاري فتح عالم الحكايات... ✨
     </div>
   )
 
   return (
-    <div className="flex min-h-screen bg-[#faf7f4]" style={{ direction: 'rtl' }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;700&display=swap');
-        body { font-family: 'IBM Plex Sans Arabic', sans-serif; }
-      `}</style>
-
-      {/* --- Sidebar (النافيغاسيون المطور) --- */}
-      <nav className="w-64 bg-white border-l border-orange-100 flex flex-col p-8 shadow-2xl z-20 sticky top-0 h-screen">
-        <div className="mb-12 text-center">
-          <div className="w-24 h-24 rounded-full border-4 border-[#7c5c3e] mx-auto overflow-hidden bg-orange-50 mb-4 shadow-lg flex items-center justify-center">
-            {profile?.avatar_url ? (
-              <img src={profile.avatar_url} className="w-full h-full object-cover" alt="avatar" />
-            ) : (
-              <span className="text-3xl">👦</span>
-            )}
+    <div className="w-full min-h-screen bg-[#fffcf1] p-4 md:p-8 font-sans antialiased text-[#3b1b0d]">
+      <div className="max-w-[1400px] mx-auto flex flex-col gap-6">
+        
+        {/* 1. TOP BAR */}
+        <header className="w-full bg-white rounded-3xl p-4 flex items-center justify-between border border-[#f3eee0] shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full overflow-hidden bg-[#e6e2d1] flex items-center justify-center border-2 border-[#c47529]">
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt="User Avatar" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-xl">👦</span>
+              )}
+            </div>
+            <div className="text-left">
+              <h1 className="text-base font-black tracking-tight">Hi {profile?.kid_name || 'بطلنا'}!</h1>
+              <p className="text-xs text-[#7a6657] font-medium">Ready for a new adventure?</p>
+            </div>
           </div>
-          <h2 className="font-black text-[#3a2a1a] text-xl mb-1">{profile?.kid_name || 'بطلنا'}</h2>
           
-          {/* عرض الـ XP الحقيقي تحت السمية */}
-          <div className="inline-block bg-[#7c5c3e]/10 px-4 py-1.5 rounded-full mt-2 border border-[#7c5c3e]/10">
-            <span className="text-[#7c5c3e] font-bold text-xs tracking-wider">✨ {profile?.total_xp || 0} XP</span>
+          <div className="flex items-center gap-3">
+            <div className="bg-[#fff9e5] border border-[#f59e0b]/30 px-3 py-1 rounded-full flex items-center gap-1.5 text-xs font-bold text-[#f59e0b]">
+              <span className="w-4 h-4 bg-[#f59e0b] text-white text-[10px] font-black rounded-full flex items-center justify-center">L</span>
+              Level <span className="font-black">2</span>
+            </div>
+            <div className="bg-[#fff3e5] border border-[#c47529]/20 px-3 py-1 rounded-full flex items-center gap-1 text-xs font-bold text-[#c47529]">
+              ✨ <span className="font-black">{profile?.total_xp || 0}</span> XP
+            </div>
           </div>
-        </div>
-
-        <div className="space-y-4 flex-1">
-          {/* رابط المكتبة */}
-          <Link href="/stories">
-            <button className={`w-full py-4 rounded-2xl font-bold flex items-center px-6 gap-4 transition-all duration-300 ${pathname === '/stories' ? 'bg-[#7c5c3e] text-white shadow-lg' : 'text-gray-400 hover:bg-orange-50 hover:text-[#7c5c3e]'}`}>
-              <span className="text-xl">📚</span> المكتبة
-            </button>
-          </Link>
-          
-          {/* رابط الإنجازات (البروفايل) - دابا خدام! */}
-          <Link href="/profile">
-            <button className={`w-full py-4 rounded-2xl font-bold flex items-center px-6 gap-4 transition-all duration-300 ${pathname === '/profile' ? 'bg-[#7c5c3e] text-white shadow-lg' : 'text-gray-400 hover:bg-orange-50 hover:text-[#7c5c3e]'}`}>
-              <span className="text-xl">🏆</span> الإنجازات
-            </button>
-          </Link>
-
-          <button className="w-full py-4 rounded-2xl font-bold text-gray-400 hover:bg-orange-50 flex items-center px-6 gap-4 transition">
-            <span className="text-xl">⚙️</span> الإعدادات
-          </button>
-        </div>
-
-        <button 
-          onClick={() => supabase.auth.signOut().then(() => window.location.href='/auth')}
-          className="mt-auto w-full py-4 rounded-2xl font-bold text-red-400 hover:bg-red-50 transition flex items-center px-6 gap-4"
-        >
-          <span>🚪</span> خروج
-        </button>
-      </nav>
-
-      {/* --- المحتوى الرئيسي --- */}
-      <main className="flex-1 p-10 md:p-16 overflow-y-auto">
-        <header className="mb-16 text-right">
-          <h1 className="text-5xl font-black text-[#3a2a1a] mb-4 leading-tight">
-            مرحباً بطلنا {profile?.kid_name}! 👋
-          </h1>
-          <p className="text-[#a07850] text-xl font-medium">اختر حكاية وانطلق في مغامرة عبر الزمن...</p>
         </header>
 
-        {/* شبكة الحكايات */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10">
-          {stories.map((story) => (
-            <motion.div 
-              whileHover={{ y: -12, scale: 1.03 }} 
-              key={story.id} 
-              className="bg-white rounded-[45px] shadow-sm border border-orange-50 overflow-hidden cursor-pointer group hover:shadow-2xl transition-all duration-500"
-              onClick={() => window.location.href = `/stories/${story.id}`}
+        {/* MAIN CONTAINER */}
+        <div className="w-full flex flex-col lg:flex-row gap-6 items-start">
+          
+          {/* 2. SIDEBAR */}
+          <aside className="w-full lg:w-[260px] bg-white rounded-3xl p-4 flex flex-col gap-3 border border-[#f3eee0] shadow-sm lg:sticky lg:top-8">
+            <Link href="/stories" className="w-full">
+              <button className={`w-full text-left rounded-2xl p-3 text-sm font-black flex items-center justify-between transition-all uppercase tracking-tight italic ${pathname === '/stories' ? 'bg-[#c47529] text-white shadow-md' : 'bg-white text-[#7a6657] hover:bg-[#fffcf1]'}`}>
+                <span>Library</span>
+                <span className="opacity-80">📚</span>
+              </button>
+            </Link>
+            
+            <Link href="/profile" className="w-full">
+              <button className={`w-full text-left rounded-2xl p-3 text-sm font-bold flex items-center justify-between transition-all border border-transparent ${pathname === '/profile' ? 'bg-[#c47529] text-white shadow-md' : 'bg-white text-[#7a6657] hover:bg-[#fffcf1]'}`}>
+                <span>Profile</span>
+                <span className="opacity-60">🏆</span>
+              </button>
+            </Link>
+            
+            <button className="w-full text-left bg-white text-[#7a6657] hover:bg-[#fffcf1] transition-colors rounded-2xl p-3 text-sm font-bold flex items-center justify-between border border-transparent">
+              <span>Settings</span>
+              <span className="opacity-60">⚙️</span>
+            </button>
+            
+            <div className="h-px bg-[#f3eee0] my-2 lg:mt-48" />
+            
+            <button 
+              onClick={() => supabase.auth.signOut().then(() => window.location.href='/auth')}
+              className="w-full text-left bg-white text-[#7a6657] hover:bg-red-50 hover:text-red-600 transition-all rounded-2xl p-3 text-sm font-bold flex items-center justify-between border border-transparent"
             >
-               <div className="h-64 bg-orange-100 overflow-hidden relative">
-                  <img 
-                    src={story.cover_url} 
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" 
-                    alt={story.title} 
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-               </div>
-               
-               <div className="p-8 text-center bg-white">
-                  <h3 className="text-2xl font-black text-[#3a2a1a] mb-6">{story.title}</h3>
-                  <button className="bg-[#7c5c3e] text-white px-8 py-4 rounded-[22px] font-black w-full shadow-lg hover:bg-[#5a3e28] transition-all transform active:scale-95">
-                    ابدأ المغامرة الآن ←
+              <span>Log out</span>
+              <span>🚪</span>
+            </button>
+          </aside>
+
+          {/* 3. CONTENT AREA */}
+          <main className="flex-1 w-full bg-white rounded-[36px] p-6 md:p-8 border border-[#f3eee0] shadow-sm flex flex-col items-center">
+            
+            <h2 className="text-xl md:text-2xl font-black text-center max-w-md uppercase italic tracking-tight mb-6" style={{ fontFamily: "'IM FELL English SC', serif" }}>
+              What do you want to read today?
+            </h2>
+
+            {/* SEARCH */}
+            <div className="w-full max-w-[540px] relative mb-6">
+              <input 
+                type="text" 
+                placeholder="What story do you want today... ?" 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-[#fffcf1] border border-[#e6e2d1] rounded-2xl py-3 px-4 pl-5 pr-12 text-sm font-medium focus:outline-none focus:border-[#c47529] transition-colors placeholder-[#a18f81] text-left"
+                style={{ direction: 'ltr' }}
+              />
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-40 text-lg">🔍</span>
+            </div>
+
+            {/* FILTERS BAR */}
+            <div className="w-full flex flex-col sm:flex-row items-center justify-center gap-4 mb-8 border-b border-[#f3eee0] pb-6">
+              {/* Language Filters */}
+              <div className="flex items-center gap-2 bg-[#fffcf1] p-1.5 rounded-full border border-[#f3eee0]">
+                {[
+                  { value: "english", label: "ENGLISH" },
+                  { value: "french", label: "FRENCH" },
+                  { value: "arabic", label: "ARABIC" }
+                ].map((lang) => (
+                  <button
+                    key={lang.value}
+                    onClick={() => setSelectedLang(lang.value)}
+                    className={`px-5 py-1.5 rounded-full text-xs font-black uppercase tracking-tight transition-all ${
+                      selectedLang === lang.value 
+                        ? "bg-[#c47529] text-white shadow-md" 
+                        : "text-[#7a6657] hover:opacity-80"
+                    }`}
+                  >
+                    {lang.label}
                   </button>
-               </div>
-            </motion.div>
-          ))}
+                ))}
+              </div>
+
+              <div className="hidden sm:block w-px h-6 bg-[#e6e2d1]" />
+
+              {/* Status Filters */}
+              <div className="flex items-center gap-2 bg-[#fffcf1] p-1.5 rounded-full border border-[#f3eee0]">
+                {[
+                  { value: "all", label: "كل الحالات" },
+                  { value: "new", label: "NEW" },
+                  { value: "in progress", label: "IN PROGRESS" },
+                  { value: "completed", label: "COMPLETED" }
+                ].map((status) => (
+                  <button
+                    key={status.value}
+                    onClick={() => setSelectedStatus(status.value)}
+                    className={`px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-tight transition-all ${
+                      selectedStatus === status.value 
+                        ? status.value === "new" ? "bg-[#22c55e] text-white shadow-md" : status.value === "in progress" ? "bg-[#f59e0b] text-white shadow-md" : status.value === "completed" ? "bg-[#eab308] text-white shadow-md" : "bg-[#c47529] text-white shadow-md"
+                        : "text-[#7a6657] hover:opacity-80"
+                    }`}
+                  >
+                    {status.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* STORIES DYNAMIC GRID */}
+            {selectedLang !== "arabic" ? (
+              <div className="w-full py-20 text-center flex flex-col items-center justify-center gap-2">
+                <span className="text-4xl animate-bounce">✨</span>
+                <p className="text-base font-black uppercase italic tracking-tight text-[#c47529]">Coming Soon / قريباً جِداً</p>
+                <p className="text-xs text-[#7a6657] font-medium max-w-xs">نحن نجهز حكايات ساحرة وممتعة باللغات الأخرى لبطلنا!</p>
+              </div>
+            ) : filteredStories.length > 0 ? (
+              <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredStories.map((story) => {
+                  const isNew = story.status?.toLowerCase() === "new";
+                  const isInProgress = story.status?.toLowerCase() === "in progress";
+                  
+                  const borderClass = isNew ? "border-[#22c55e]" : isInProgress ? "border-[#f59e0b]" : "border-[#eab308]";
+                  const btnLabel = isNew ? "Start reading" : isInProgress ? "Continue" : "Read Again";
+
+                  return (
+                    <motion.article 
+                      key={story.id}
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      whileHover={{ y: -6, scale: 1.02 }}
+                      className={`w-full aspect-[4/3] rounded-[28px] border-[3px] ${borderClass} relative overflow-hidden group shadow-sm bg-black cursor-pointer`}
+                      onClick={() => window.location.href = `/stories/${story.id}`}
+                    >
+                      <img 
+                        src={story.cover_url || "/assets/story1.png"} 
+                        alt={story.title} 
+                        className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-500" 
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent pointer-events-none" />
+
+                      <div className="absolute inset-0 p-5 flex flex-col justify-end items-start text-white text-left">
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <span className="bg-white/20 backdrop-blur-md text-[9px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">Arabic</span>
+                          <span className="bg-white/20 backdrop-blur-md text-[9px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
+                            {story.status?.toUpperCase()}
+                          </span>
+                        </div>
+                        
+                        <h3 className="text-base font-black uppercase italic tracking-tight mb-1">{story.title}</h3>
+                        <p className="text-xs text-white/80 font-medium leading-relaxed mb-4 line-clamp-2 max-w-[220px]">
+                          {story.description || "An epic adventure full of excitement and language learning secrets."}
+                        </p>
+                        
+                        <button className="w-full bg-[#c47529] group-hover:bg-[#b0631e] transition-colors text-white text-xs font-black uppercase tracking-tight py-2.5 rounded-xl flex items-center justify-center gap-2 italic shadow-md">
+                          {btnLabel} <span>→</span>
+                        </button>
+                      </div>
+                    </motion.article>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="w-full py-20 text-center flex flex-col items-center justify-center gap-2">
+                <span className="text-4xl">📚</span>
+                <p className="text-sm font-bold text-[#7a6657]">No stories found matching your filter.</p>
+              </div>
+            )}
+
+            {/* LOAD MORE BUTTON */}
+            {selectedLang === "arabic" && filteredStories.length > 0 && (
+              <button className="mt-8 border-2 border-[#f3eee0] text-[#7a6657] hover:bg-[#fffcf1] transition-colors font-black text-xs uppercase tracking-wider px-12 py-3 rounded-2xl shadow-sm">
+                Load More
+              </button>
+            )}
+
+          </main>
         </div>
 
-        {stories.length === 0 && (
-          <div className="text-center py-20 bg-white/50 rounded-[50px] border-2 border-dashed border-orange-100">
-             <p className="text-gray-400 text-xl font-bold italic tracking-widest">قريباً.. حكايات جديدة في انتظارك!</p>
-          </div>
-        )}
-      </main>
+      </div>
     </div>
-  )
+  );
 }

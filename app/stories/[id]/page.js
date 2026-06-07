@@ -22,30 +22,89 @@ export default function StoryPlayer() {
   const [xpEarned, setXpEarned] = useState(0)
   const [selectedOption, setSelectedOption] = useState(null)
 
+  // 1. جلب المشاهد + جلب آخر صفحة وقف فيها الطفل من قبل
   useEffect(() => {
-    async function fetchScenes() {
+    async function fetchStoryData() {
       if (!storyId) return
-      const { data, error } = await supabase
+      
+      // جلب المشاهد
+      const { data: scenesData } = await supabase
         .from('scenes')
         .select('*')
         .eq('story_id', storyId)
         .order('order_index', { ascending: true })
       
-      if (!error) setScenes(data || [])
+      const fetchedScenes = scenesData || []
+      setScenes(fetchedScenes)
+
+      // جلب آخر تقدم محفوظ للطفل فـ هذه القصة
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user) {
+        const { data: progressData } = await supabase
+          .from('user_stories')
+          .select('last_page, status')
+          .eq('profile_id', session.user.id)
+          .eq('story_id', storyId)
+          .single()
+
+        // إذا لقى صفحة محفوظة ومشي كمل الحكاية، يرجعو ليها نيشان
+        if (progressData && progressData.status !== 'Completed' && progressData.last_page < fetchedScenes.length) {
+          setCurrentIndex(progressData.last_page)
+        }
+      }
       setLoading(false)
     }
-    fetchScenes()
+    fetchStoryData()
   }, [storyId])
 
+  // --- إصلاح السكرول (Mouse + Touch Tactile) ---
   useEffect(() => {
     const handleWheel = (e) => {
       if (isTransitioning.current || scenes.length === 0 || showQuiz) return
       if (e.deltaY > 50) nextScene()
       else if (e.deltaY < -50) prevScene()
     }
+
+    let touchStartY = 0
+    const handleTouchStart = (e) => {
+      touchStartY = e.touches[0].clientY
+    }
+
+    const handleTouchEnd = (e) => {
+      if (isTransitioning.current || scenes.length === 0 || showQuiz) return
+      const touchEndY = e.changedTouches[0].clientY
+      const deltaY = touchStartY - touchEndY
+
+      if (deltaY > 50) nextScene()      
+      else if (deltaY < -50) prevScene() 
+    }
+
     window.addEventListener('wheel', handleWheel)
-    return () => window.removeEventListener('wheel', handleWheel)
+    window.addEventListener('touchstart', handleTouchStart)
+    window.addEventListener('touchend', handleTouchEnd)
+
+    return () => {
+      window.removeEventListener('wheel', handleWheel)
+      window.removeEventListener('touchstart', handleTouchStart)
+      window.removeEventListener('touchend', handleTouchEnd)
+    }
   }, [currentIndex, scenes.length, showQuiz])
+
+  // 🛠️ فانكشن داخلية ذكية لحفظ حالة القراءة كـ In Progress لايف فـ الداتابيز
+const saveLiveProgress = async (pageIndex) => {
+      const { data: { session } } = await supabase.auth.getSession()
+    if (session?.user && storyId) {
+      await supabase
+        .from('user_stories')
+        .upsert({
+          profile_id: session.user.id,
+          story_id: Number(storyId),
+          last_page: pageIndex,
+          status: 'In Progress', // تقييد القصة كـ قيد القراءة
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'profile_id,story_id' })
+    }
+  }
 
   const fetchQuizzes = async () => {
     const { data } = await supabase.from('quizzes').select('*').eq('story_id', storyId).limit(3)
@@ -53,7 +112,25 @@ export default function StoryPlayer() {
       setQuizzes(data)
       setShowQuiz(true)
     } else {
+      // إذا مكانش كاين كويز، كيتعتبر كمل الحكاية أوتوماتيكياً
+      await handleStoryCompletion()
       window.location.href = '/stories'
+    }
+  }
+
+  // 🛠️ فانكشن لتقييد القصة كـ المكتملة (Completed) فـ الداتابيز وإعادة تصفير الصفحة لـ 1
+  const handleStoryCompletion = async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.user && storyId) {
+      await supabase
+        .from('user_stories')
+        .upsert({
+          profile_id: session.user.id,
+          story_id: Number(storyId),
+          last_page: 0, // تصفير العداد لـ 0 فـ حالة بغا يعاود يقراها
+          status: 'Completed', // تحويل الحالة لـ مكتملة 🎉
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'profile_id,story_id' })
     }
   }
 
@@ -65,9 +142,13 @@ export default function StoryPlayer() {
 
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
+      // 1. تحديث الـ XP فـ ملف الطفل
       const { data: profile } = await supabase.from('profiles').select('total_xp').eq('id', user.id).single()
       const newXP = (profile?.total_xp || 0) + totalEarned
       await supabase.from('profiles').update({ total_xp: newXP }).eq('id', user.id)
+      
+      // 2. تقييد الحكاية كـ Completed ديناميكياً
+      await handleStoryCompletion()
     }
   }
 
@@ -92,7 +173,12 @@ export default function StoryPlayer() {
   const nextScene = () => {
     if (currentIndex < scenes.length - 1) {
       isTransitioning.current = true
-      setCurrentIndex(prev => prev + 1)
+      const nextIndex = currentIndex + 1
+      setCurrentIndex(nextIndex)
+      
+      // حفظ التقدم لايف فـ الداتابيز مع كل حركية
+      saveLiveProgress(nextIndex)
+      
       setTimeout(() => { isTransitioning.current = false }, 1200)
     } else {
       fetchQuizzes()
@@ -102,7 +188,12 @@ export default function StoryPlayer() {
   const prevScene = () => {
     if (currentIndex > 0) {
       isTransitioning.current = true
-      setCurrentIndex(prev => prev - 1)
+      const prevIndex = currentIndex - 1
+      setCurrentIndex(prevIndex)
+      
+      // حفظ التقدم لايف
+      saveLiveProgress(prevIndex)
+      
       setTimeout(() => { isTransitioning.current = false }, 1200)
     }
   }
@@ -120,28 +211,21 @@ export default function StoryPlayer() {
         body { margin: 0; background: black; font-family: 'IBM Plex Sans Arabic', sans-serif; }
       ` }} />
 
-      {/* --- أزرار التحكم العلوية (Premium Classic Style) --- */}
+      {/* --- التحكم العلوية --- */}
       <div className="absolute top-10 left-10 right-10 z-[1000] flex justify-between items-center">
-        
-        {/* زر المكتبة (على اليسار) */}
         <button 
           onClick={() => window.location.href = '/stories'} 
-          className="bg-white/90 text-[#7c5c3e] border border-[#e8ddd3] px-8 py-3 rounded-full font-bold backdrop-blur-md shadow-2xl hover:scale-105 transition-all active:scale-95 flex items-center gap-2"
+          className="bg-white/90 text-[#7c5c3e] border border-[#e8ddd3] px-8 py-3 rounded-full font-bold backdrop-blur-md shadow-2xl hover:scale-105 transition-all flex items-center gap-2"
         >
           <span style={{ fontSize: '18px' }}>←</span>
           <span>المكتبة</span>
         </button>
 
-        {/* زر كتم الصوت (على اليمين) */}
         <button 
           onClick={() => setIsMuted(!isMuted)} 
-          className="bg-white/90 text-[#7c5c3e] w-14 h-14 rounded-full flex items-center justify-center shadow-2xl backdrop-blur-md hover:scale-110 transition-all active:scale-90 border border-[#e8ddd3]"
+          className="bg-white/90 text-[#7c5c3e] w-14 h-14 rounded-full flex items-center justify-center shadow-2xl backdrop-blur-md hover:scale-110 transition-all border border-[#e8ddd3]"
         >
-          {isMuted ? (
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"></path><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
-          ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path><path d="M15.53 8.47a5 5 0 0 1 0 7.07"></path></svg>
-          )}
+          {isMuted ? "🔇" : "🔊"}
         </button>
       </div>
 
@@ -155,15 +239,23 @@ export default function StoryPlayer() {
             visibility: index === currentIndex ? 'visible' : 'hidden',
             zIndex: index === currentIndex ? 10 : 0
           }}>
-          <video autoPlay muted loop playsInline className="w-full h-full object-cover opacity-60">
-            <source src={scene.video_url} type="video/mp4" />
-          </video>
-          {/* إيقاف الصوت أوتوماتيكياً عند الكويز */}
-          {index === currentIndex && !isMuted && !showQuiz && (
-            <audio autoPlay key={scene.audio_url}><source src={scene.audio_url} type="audio/mpeg" /></audio>
+          
+          {scene.video_url?.match(/\.(mp4|webm|ogg|mov)$/i) ? (
+            <video key={`vid-${scene.id}`} autoPlay muted loop playsInline className="w-full h-full object-cover opacity-60">
+              <source src={scene.video_url} type="video/mp4" />
+            </video>
+          ) : (
+            <img src={scene.video_url} className="w-full h-full object-cover opacity-60" alt="Scene" />
           )}
+
+          {index === currentIndex && !isMuted && !showQuiz && scene.audio_url && (
+            <audio autoPlay key={`aud-${scene.id}`}>
+              <source src={scene.audio_url} type="audio/mpeg" />
+            </audio>
+          )}
+
           <div className="absolute bottom-0 w-full pb-32 px-10 text-center z-20 bg-gradient-to-t from-black/90 to-transparent">
-            <p className="text-2xl md:text-4xl text-white/90 max-w-4xl mx-auto leading-relaxed italic">{scene.content}</p>
+            <p className="text-2xl md:text-4xl text-white/90 max-w-4xl mx-auto leading-relaxed italic drop-shadow-2xl">{scene.content}</p>
           </div>
         </div>
       ))}
@@ -177,7 +269,7 @@ export default function StoryPlayer() {
         </div>
       )}
 
-      {/* --- واجهة الاختبار المطور --- */}
+      {/* --- واجهة الاختبار --- */}
       {showQuiz && (
         <div className="fixed inset-0 z-[2000] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6 text-right" dir="rtl">
           <div className="max-w-xl w-full bg-[#1a1510] border border-[#7c5c3e]/30 p-10 rounded-[40px] shadow-2xl relative">
@@ -188,7 +280,6 @@ export default function StoryPlayer() {
                     <div key={i} className={`h-1 flex-1 rounded-full transition-all duration-500 ${i <= currentQuizStep ? 'bg-[#7c5c3e]' : 'bg-white/10'}`} />
                   ))}
                 </div>
-                <p className="text-[#7c5c3e] font-bold text-sm mb-2 italic uppercase">تحدي الذاكرة 🧠</p>
                 <h2 className="text-[#e8ddd3] text-2xl md:text-3xl font-bold mb-8 leading-tight">{quizzes[currentQuizStep]?.question}</h2>
                 <div className="flex flex-col gap-4">
                   {quizzes[currentQuizStep]?.options.map((option, index) => {
@@ -202,7 +293,7 @@ export default function StoryPlayer() {
                     return (
                       <button key={index} disabled={selectedOption !== null} onClick={() => handleAnswerClick(index)} className={`p-5 border rounded-2xl text-right transition-all duration-300 flex justify-between items-center ${btnStyle}`}>
                         <span className="text-lg">{option}</span>
-                        {selectedOption !== null && isCorrect && <span className="animate-bounce">✅</span>}
+                        {selectedOption !== null && isCorrect && <span>✅</span>}
                         {selectedOption === index && !isCorrect && <span>❌</span>}
                       </button>
                     )
@@ -215,7 +306,6 @@ export default function StoryPlayer() {
                 <h2 className="text-[#e8ddd3] text-3xl font-black mb-2 tracking-wide">مذهل يا بطل!</h2>
                 <div className="bg-[#7c5c3e]/10 p-8 rounded-[35px] mb-10 border border-[#7c5c3e]/20 inline-block px-14 shadow-inner">
                    <p className="text-white font-black text-5xl">+{xpEarned} XP</p>
-                   <p className="text-[#7c5c3e] text-[10px] mt-4 font-bold uppercase tracking-tighter">(100 قصة + {score * 50} اختبار)</p>
                 </div>
                 <button onClick={() => window.location.href = '/stories'} className="w-full bg-[#7c5c3e] text-white py-5 rounded-3xl font-black text-xl hover:scale-105 active:scale-95 transition-all shadow-xl shadow-[#7c5c3e]/20">
                   العودة للمكتبة
