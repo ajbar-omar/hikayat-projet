@@ -24,10 +24,50 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        
+        {/* 🌟 تاغ الصوت الرئيسي معزول ونقي */}
+        <audio 
+          autoPlay 
+          loop 
+          src="/assets/global-bg-music.mp3" 
+          className="hidden"
+          id="global-bg-audio"
+        />
+
         {children}
+
+        {/* ⚡ سكريبت عسكري وبسيط جداً: وظيفته الوحيدة يطلق الصوت أول مرة ويحضي الـ URL */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              const handleAudioSync = () => {
+                const audio = document.getElementById('global-bg-audio');
+                if (!audio) return;
+
+                const path = window.location.pathname;
+                const isMutedByParent = localStorage.getItem('bg_music_enabled') === 'false';
+                
+                // 🛑 منع صارم وقاطع: إيلا كنا وسط الـ Player (/stories/شي_حاجة) أو اللوݣين دير السكات فوراً
+                const isInsidePlayer = path.includes('/stories/') && path !== '/stories';
+
+                if (isMutedByParent || isInsidePlayer || path === '/' || path.startsWith('/auth')) {
+                  audio.pause();
+                } else if (audio.paused) {
+                  audio.play().catch(() => {});
+                }
+              };
+
+              // كسر البلوكاج مع أول كليكة
+              window.addEventListener('click', handleAudioSync);
+              window.addEventListener('touchstart', handleAudioSync);
+              window.addEventListener('storage', handleAudioSync);
+
+              // تشيك دوري سريع كل 100 ميلي ثانية باش يسبق الـ Navigation د Next.js وميوقعش تداخل
+              setInterval(handleAudioSync, 100);
+            `,
+          }}
+        />
       </body>
     </html>
   );

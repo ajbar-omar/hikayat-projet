@@ -22,12 +22,54 @@ export default function StoryPlayer() {
   const [xpEarned, setXpEarned] = useState(0)
   const [selectedOption, setSelectedOption] = useState(null)
 
-  // 1. جلب المشاهد + جلب آخر صفحة وقف فيها الطفل من قبل
+  // 🌟 1. الـتّـحـكّـم الـمـبـاشـر فـ الـمـوزِيـكـا ديـال الـ خـلـفـيـة لـبـرّة عـنـد الـدّخـول والـخـروج
+  useEffect(() => {
+    localStorage.setItem('inside_player', 'true')
+    
+    // إيـقـاف فـوري ومـبـاشـر لـلـمـوزِيـكـا ديـال الـسّـايـت كـامـل بـالـ ID
+    const globalAudio = document.getElementById('global-bg-audio')
+    if (globalAudio) {
+      globalAudio.pause()
+    }
+
+    // قـراءة إعـدادات الـ Sound Effects د الـأب فـ الـأول
+    const isSoundEffectsEnabled = localStorage.getItem('sound_effects') !== 'false'
+    setIsMuted(!isSoundEffectsEnabled)
+
+    return () => {
+      localStorage.removeItem('inside_player')
+      
+      // مـلـي كـايـخـرج الـطّـفـل، كـاتـرجـع الـمـوزِيـكـا تـشـعـل إيـلا كـان الـأب مـمـطـفّـيـهـاش
+      const isMutedByParent = localStorage.getItem('bg_music_enabled') === 'false'
+      const globalAudioBack = document.getElementById('global-bg-audio')
+      if (globalAudioBack && !isMutedByParent) {
+        globalAudioBack.play().catch(() => {})
+      }
+    }
+  }, [])
+
+  // 🌟 2. الـتّـعـديـل الـجـديـد: الـتّـصـنّـت الـدّيـنـامـيـكـي لايـف لـ الـ Sound Effects ديـال الـأب
+  useEffect(() => {
+    const handleSoundEffectsLiveChange = () => {
+      const isSoundEffectsEnabled = localStorage.getItem('sound_effects') !== 'false'
+      // إيـلا الـأب طـفّـاهـا مـن الـ Settings، كـايـتـدار Mute لـلـرّاوي فـ الـبـلاصـة
+      setIsMuted(!isSoundEffectsEnabled)
+    }
+
+    // الـتّـسـمّـع لايـف لـأي تـغـيـيـر جـاي مـن الـ Settings لـبـرّة
+    window.addEventListener('storage', handleSoundEffectsLiveChange)
+    
+    return () => {
+      window.removeEventListener('storage', handleSoundEffectsLiveChange)
+    }
+  }, [])
+
+  // 3. جـلـب الـمـشـاهـد + جـلـب آخـر تـقـدُّم
   useEffect(() => {
     async function fetchStoryData() {
       if (!storyId) return
       
-      // جلب المشاهد
+      // جـلـب الـمـشـاهـد
       const { data: scenesData } = await supabase
         .from('scenes')
         .select('*')
@@ -37,7 +79,7 @@ export default function StoryPlayer() {
       const fetchedScenes = scenesData || []
       setScenes(fetchedScenes)
 
-      // جلب آخر تقدم محفوظ للطفل فـ هذه القصة
+      // جـلـب آخـر تـقـدُّم مـحـفـوظ لـلـطّـفـل
       const { data: { session } } = await supabase.auth.getSession()
       if (session?.user) {
         const { data: progressData } = await supabase
@@ -47,7 +89,6 @@ export default function StoryPlayer() {
           .eq('story_id', storyId)
           .single()
 
-        // إذا لقى صفحة محفوظة ومشي كمل الحكاية، يرجعو ليها نيشان
         if (progressData && progressData.status !== 'Completed' && progressData.last_page < fetchedScenes.length) {
           setCurrentIndex(progressData.last_page)
         }
@@ -57,7 +98,7 @@ export default function StoryPlayer() {
     fetchStoryData()
   }, [storyId])
 
-  // --- إصلاح السكرول (Mouse + Touch Tactile) ---
+  // --- إِصـلـاح الـسّـكـرول (Mouse + Touch Tactile) ---
   useEffect(() => {
     const handleWheel = (e) => {
       if (isTransitioning.current || scenes.length === 0 || showQuiz) return
@@ -90,9 +131,8 @@ export default function StoryPlayer() {
     }
   }, [currentIndex, scenes.length, showQuiz])
 
-  // 🛠️ فانكشن داخلية ذكية لحفظ حالة القراءة كـ In Progress لايف فـ الداتابيز
-const saveLiveProgress = async (pageIndex) => {
-      const { data: { session } } = await supabase.auth.getSession()
+  const saveLiveProgress = async (pageIndex) => {
+    const { data: { session } } = await supabase.auth.getSession()
     if (session?.user && storyId) {
       await supabase
         .from('user_stories')
@@ -100,7 +140,7 @@ const saveLiveProgress = async (pageIndex) => {
           profile_id: session.user.id,
           story_id: Number(storyId),
           last_page: pageIndex,
-          status: 'In Progress', // تقييد القصة كـ قيد القراءة
+          status: 'In Progress',
           updated_at: new Date().toISOString()
         }, { onConflict: 'profile_id,story_id' })
     }
@@ -112,13 +152,11 @@ const saveLiveProgress = async (pageIndex) => {
       setQuizzes(data)
       setShowQuiz(true)
     } else {
-      // إذا مكانش كاين كويز، كيتعتبر كمل الحكاية أوتوماتيكياً
       await handleStoryCompletion()
       window.location.href = '/stories'
     }
   }
 
-  // 🛠️ فانكشن لتقييد القصة كـ المكتملة (Completed) فـ الداتابيز وإعادة تصفير الصفحة لـ 1
   const handleStoryCompletion = async () => {
     const { data: { session } } = await supabase.auth.getSession()
     if (session?.user && storyId) {
@@ -127,8 +165,8 @@ const saveLiveProgress = async (pageIndex) => {
         .upsert({
           profile_id: session.user.id,
           story_id: Number(storyId),
-          last_page: 0, // تصفير العداد لـ 0 فـ حالة بغا يعاود يقراها
-          status: 'Completed', // تحويل الحالة لـ مكتملة 🎉
+          last_page: 0,
+          status: 'Completed',
           updated_at: new Date().toISOString()
         }, { onConflict: 'profile_id,story_id' })
     }
@@ -142,12 +180,9 @@ const saveLiveProgress = async (pageIndex) => {
 
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
-      // 1. تحديث الـ XP فـ ملف الطفل
       const { data: profile } = await supabase.from('profiles').select('total_xp').eq('id', user.id).single()
       const newXP = (profile?.total_xp || 0) + totalEarned
       await supabase.from('profiles').update({ total_xp: newXP }).eq('id', user.id)
-      
-      // 2. تقييد الحكاية كـ Completed ديناميكياً
       await handleStoryCompletion()
     }
   }
@@ -175,10 +210,7 @@ const saveLiveProgress = async (pageIndex) => {
       isTransitioning.current = true
       const nextIndex = currentIndex + 1
       setCurrentIndex(nextIndex)
-      
-      // حفظ التقدم لايف فـ الداتابيز مع كل حركية
       saveLiveProgress(nextIndex)
-      
       setTimeout(() => { isTransitioning.current = false }, 1200)
     } else {
       fetchQuizzes()
@@ -190,10 +222,7 @@ const saveLiveProgress = async (pageIndex) => {
       isTransitioning.current = true
       const prevIndex = currentIndex - 1
       setCurrentIndex(prevIndex)
-      
-      // حفظ التقدم لايف
       saveLiveProgress(prevIndex)
-      
       setTimeout(() => { isTransitioning.current = false }, 1200)
     }
   }
@@ -211,7 +240,7 @@ const saveLiveProgress = async (pageIndex) => {
         body { margin: 0; background: black; font-family: 'IBM Plex Sans Arabic', sans-serif; }
       ` }} />
 
-      {/* --- التحكم العلوية --- */}
+      {/* --- الـتّـحـكّـم الـعـلـويـة --- */}
       <div className="absolute top-10 left-10 right-10 z-[1000] flex justify-between items-center">
         <button 
           onClick={() => window.location.href = '/stories'} 
@@ -221,15 +250,19 @@ const saveLiveProgress = async (pageIndex) => {
           <span>المكتبة</span>
         </button>
 
+        {/* 🌟 زر الـ Mute الـمـحـمـي ديـالـك بـالـقـفـل د الـ Stop Propagation */}
         <button 
-          onClick={() => setIsMuted(!isMuted)} 
+          onClick={(e) => {
+            e.stopPropagation(); // 🛑 حـظـر انـتـشـار الـ كـلـيـكـة لـلـخـارج لـمـنـع تـشـغـيـل مـوزِيـكـا الـ خـلـفـيـة
+            setIsMuted(!isMuted);
+          }} 
           className="bg-white/90 text-[#7c5c3e] w-14 h-14 rounded-full flex items-center justify-center shadow-2xl backdrop-blur-md hover:scale-110 transition-all border border-[#e8ddd3]"
         >
           {isMuted ? "🔇" : "🔊"}
         </button>
       </div>
 
-      {/* المشاهد */}
+      {/* الـمـشـاهـد */}
       {!showQuiz && scenes.map((scene, index) => (
         <div key={scene.id} style={{ 
             position: 'absolute', inset: 0, 
@@ -248,6 +281,7 @@ const saveLiveProgress = async (pageIndex) => {
             <img src={scene.video_url} className="w-full h-full object-cover opacity-60" alt="Scene" />
           )}
 
+          {/* صـوت الـرّاوي الـنّـقـي */}
           {index === currentIndex && !isMuted && !showQuiz && scene.audio_url && (
             <audio autoPlay key={`aud-${scene.id}`}>
               <source src={scene.audio_url} type="audio/mpeg" />
@@ -260,7 +294,7 @@ const saveLiveProgress = async (pageIndex) => {
         </div>
       ))}
 
-      {/* مؤشر السكرول */}
+      {/* مـؤشّـر الـسّـكـرول */}
       {!showQuiz && (
         <div className="absolute right-10 top-1/2 -translate-y-1/2 z-[100] flex flex-col gap-3">
           {scenes.map((_, i) => (
@@ -269,7 +303,7 @@ const saveLiveProgress = async (pageIndex) => {
         </div>
       )}
 
-      {/* --- واجهة الاختبار --- */}
+      {/* --- واجـهـة الـاخـتـبـار --- */}
       {showQuiz && (
         <div className="fixed inset-0 z-[2000] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6 text-right" dir="rtl">
           <div className="max-w-xl w-full bg-[#1a1510] border border-[#7c5c3e]/30 p-10 rounded-[40px] shadow-2xl relative">
@@ -303,12 +337,12 @@ const saveLiveProgress = async (pageIndex) => {
             ) : (
               <div className="text-center py-6">
                 <div className="text-6xl mb-6 font-bold">🏆</div>
-                <h2 className="text-[#e8ddd3] text-3xl font-black mb-2 tracking-wide">مذهل يا بطل!</h2>
+                <h2 className="text-[#e8ddd3] text-3xl font-black mb-2 tracking-wide">مـذهـل يـا بـطـل!</h2>
                 <div className="bg-[#7c5c3e]/10 p-8 rounded-[35px] mb-10 border border-[#7c5c3e]/20 inline-block px-14 shadow-inner">
                    <p className="text-white font-black text-5xl">+{xpEarned} XP</p>
                 </div>
                 <button onClick={() => window.location.href = '/stories'} className="w-full bg-[#7c5c3e] text-white py-5 rounded-3xl font-black text-xl hover:scale-105 active:scale-95 transition-all shadow-xl shadow-[#7c5c3e]/20">
-                  العودة للمكتبة
+                  الـعـودة لـلـمـكـتـبـة
                 </button>
               </div>
             )}

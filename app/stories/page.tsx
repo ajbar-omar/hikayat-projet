@@ -63,7 +63,7 @@ export default function StoriesLibrary() {
     loadData()
   }, [])
 
-  // 🛠️ الفلترة الذكية (مقاومة تماماً لـ الـ Case Sensitivity بـ الحروف الصغار)
+  // 🛠️ الفلترة الذكية
   const filteredStories = stories.filter(story => {
     const matchesSearch = story.title?.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesStatus = selectedStatus === "all" || story.status?.toLowerCase() === selectedStatus.toLowerCase()
@@ -79,7 +79,7 @@ export default function StoriesLibrary() {
   )
 
   return (
-    <div className="w-full min-h-screen bg-[#fffcf1] p-4 md:p-8 font-sans antialiased text-[#3b1b0d]">
+    <div className="w-full min-h-screen bg-[#fffcf1] p-4 md:p-8 font-sans antialiased text-[#3b1b0d]" dir="ltr">
       <div className="max-w-[1400px] mx-auto flex flex-col gap-6">
         
         {/* 1. TOP BAR */}
@@ -101,7 +101,7 @@ export default function StoriesLibrary() {
           <div className="flex items-center gap-3">
             <div className="bg-[#fff9e5] border border-[#f59e0b]/30 px-3 py-1 rounded-full flex items-center gap-1.5 text-xs font-bold text-[#f59e0b]">
               <span className="w-4 h-4 bg-[#f59e0b] text-white text-[10px] font-black rounded-full flex items-center justify-center">L</span>
-              Level <span className="font-black">2</span>
+              Level <span className="font-black">{Math.floor((profile?.total_xp || 0) / 500) + 1}</span>
             </div>
             <div className="bg-[#fff3e5] border border-[#c47529]/20 px-3 py-1 rounded-full flex items-center gap-1 text-xs font-bold text-[#c47529]">
               ✨ <span className="font-black">{profile?.total_xp || 0}</span> XP
@@ -128,10 +128,13 @@ export default function StoriesLibrary() {
               </button>
             </Link>
             
-            <button className="w-full text-left bg-white text-[#7a6657] hover:bg-[#fffcf1] transition-colors rounded-2xl p-3 text-sm font-bold flex items-center justify-between border border-transparent">
-              <span>Settings</span>
-              <span className="opacity-60">⚙️</span>
-            </button>
+            {/* 🌟 تَمَّ الـتَّصْلِيحْ هُنَا: تغليف زر الإعدادات برابط حقيقي ومباشر */}
+            <Link href="/settings" className="w-full">
+              <button className={`w-full text-left rounded-2xl p-3 text-sm font-bold flex items-center justify-between transition-all border border-transparent ${pathname === '/settings' ? 'bg-[#c47529] text-white shadow-md' : 'bg-white text-[#7a6657] hover:bg-[#fffcf1]'}`}>
+                <span>Settings</span>
+                <span className="opacity-60">⚙️</span>
+              </button>
+            </Link>
             
             <div className="h-px bg-[#f3eee0] my-2 lg:mt-48" />
             
@@ -166,7 +169,6 @@ export default function StoriesLibrary() {
 
             {/* FILTERS BAR */}
             <div className="w-full flex flex-col sm:flex-row items-center justify-center gap-4 mb-8 border-b border-[#f3eee0] pb-6">
-              {/* Language Filters */}
               <div className="flex items-center gap-2 bg-[#fffcf1] p-1.5 rounded-full border border-[#f3eee0]">
                 {[
                   { value: "english", label: "ENGLISH" },
@@ -189,7 +191,6 @@ export default function StoriesLibrary() {
 
               <div className="hidden sm:block w-px h-6 bg-[#e6e2d1]" />
 
-              {/* Status Filters */}
               <div className="flex items-center gap-2 bg-[#fffcf1] p-1.5 rounded-full border border-[#f3eee0]">
                 {[
                   { value: "all", label: "كل الحالات" },
