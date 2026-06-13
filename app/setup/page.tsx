@@ -11,11 +11,11 @@ export default function SetupPage() {
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // 🌟 حيدنا birth_date من هنا حيت مبقيناش كنحتاجوه 🌟
   const [childData, setChildData] = useState({
     kid_name: '',
     child_username: '',
     kid_age: 12,
-    birth_date: '',
     avatar_url: ''
   })
 
@@ -42,14 +42,16 @@ export default function SetupPage() {
     setCroppedAreaPixels(pixels)
   }, [])
 
+  // 🌟 استعملنا الطريقة السريعة ديال قراءة الصورة باش ما يتبلوكاش المتصفح 🌟
   const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const reader = new FileReader()
-      reader.addEventListener('load', () => {
-        setImage(reader.result as string)
-        setShowCropper(true)
-      })
-      reader.readAsDataURL(e.target.files[0])
+      const file = e.target.files[0];
+      if (!file.type.startsWith('image/')) return;
+      
+      const imageUrl = URL.createObjectURL(file);
+      setImage(imageUrl);
+      setShowCropper(true);
+      e.target.value = ''; 
     }
   }
 
@@ -67,14 +69,17 @@ export default function SetupPage() {
         croppedAreaPixels.x, croppedAreaPixels.y, croppedAreaPixels.width, croppedAreaPixels.height,
         0, 0, croppedAreaPixels.width, croppedAreaPixels.height
       )
-      return new Promise((res) => canvas.toBlob((blob) => res(blob), 'image/jpeg'))
+      return new Promise((res) => canvas.toBlob((blob) => res(blob), 'image/jpeg', 0.9))
     } catch (e) { return null }
   }
 
   const handleCroppedUpload = async () => {
-    setLoading(true)
+    setLoading(true) // 🌟 هادي غتبدل لينا البوطون باش اليوزر يعرف باللي كتيليشارجا 🌟
     const blob = await createCroppedImage()
-    if (!blob || !userId) return
+    if (!blob || !userId) {
+      setLoading(false)
+      return
+    }
 
     const fileName = `${userId}-${Date.now()}.jpg`
     const { error } = await supabase.storage.from('avatars').upload(`kids/${fileName}`, blob)
@@ -83,6 +88,8 @@ export default function SetupPage() {
       const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(`kids/${fileName}`)
       setChildData({ ...childData, avatar_url: publicUrl })
       setShowCropper(false)
+    } else {
+      alert("Erreur lors du téléchargement de l'image.")
     }
     setLoading(false)
   }
@@ -91,6 +98,7 @@ export default function SetupPage() {
     setLoading(true)
     if (!userId) return
 
+    // 🌟 حيدنا birth_date من الإرسال لقاعدة البيانات باش ما يضربش لينا داك الإيرور 🌟
     const { error } = await supabase
       .from('profiles')
       .upsert({
@@ -99,7 +107,6 @@ export default function SetupPage() {
         kid_name: childData.kid_name,
         child_username: childData.child_username,
         kid_age: childData.kid_age,
-        birth_date: childData.birth_date,
         avatar_url: childData.avatar_url,
         is_setup_complete: true
       }, { onConflict: 'id' })
@@ -129,8 +136,12 @@ export default function SetupPage() {
             <div className="w-full max-w-[500px] mt-10 space-y-8">
               <input type="range" value={zoom} min={1} max={3} step={0.1} onChange={(e) => setZoom(Number(e.target.value))} className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-[#c5772d]" />
               <div className="flex gap-4">
-                <button onClick={() => setShowCropper(false)} className="flex-1 py-5 bg-white/10 text-white rounded-3xl font-bold hover:bg-white/20 transition">Annuler</button>
-                <button onClick={handleCroppedUpload} className="flex-1 py-5 bg-[#c5772d] text-white rounded-3xl font-bold shadow-xl transition active:scale-95">Confirmer</button>
+                <button onClick={() => setShowCropper(false)} disabled={loading} className="flex-1 py-5 bg-white/10 text-white rounded-3xl font-bold hover:bg-white/20 transition disabled:opacity-50">Annuler</button>
+                
+                {/* 🌟 هادي البوطون لي زدنا ليها حالة التحميل باش اليوزر يصبر 🌟 */}
+                <button onClick={handleCroppedUpload} disabled={loading} className="flex-1 py-5 bg-[#c5772d] text-white rounded-3xl font-bold shadow-xl transition active:scale-95 disabled:opacity-50">
+                  {loading ? 'Téléchargement...' : 'Confirmer'}
+                </button>
               </div>
             </div>
           </motion.div>
@@ -138,13 +149,15 @@ export default function SetupPage() {
       </AnimatePresence>
 
       <nav className="p-10 max-w-[1400px] mx-auto flex justify-between items-center">
-        <img src="/logo.svg" className="h-12 w-auto object-contain" alt="HIKAYAT" />
+        <a href="/#home" className="inline-block transition-transform hover:scale-105">
+          <img src="/logo.svg" className="h-12 w-auto object-contain" alt="HIKAYAT" />
+        </a>
       </nav>
 
       <main className="max-w-[850px] mx-auto p-6">
         <motion.div layout className="bg-white rounded-[60px] p-12 md:p-20 shadow-[0_20px_70px_rgba(0,0,0,0.03)] relative min-h-[700px] flex flex-col items-center">
           
-          {/* Stepper Dots (LTR Layout - Back to normal) */}
+          {/* Stepper Dots */}
           <div className="flex items-center justify-between w-full max-w-[280px] mb-20 relative">
              {[1, 2, 3].map((i) => (
                 <div key={i} className="flex items-center flex-1 last:flex-none">
@@ -185,13 +198,26 @@ export default function SetupPage() {
                   <div className="space-y-8 text-left">
                     <div>
                       <label className="block mb-3 font-bold text-gray-700 text-sm ml-2">Âge</label>
-                      <input type="number" className="input-setup" value={childData.kid_age} onChange={e => setChildData({...childData, kid_age: parseInt(e.target.value) || 0})} />
+                      <input 
+                        type="number" 
+                        className="input-setup" 
+                        value={childData.kid_age || ''} 
+                        onChange={e => setChildData({...childData, kid_age: parseInt(e.target.value) || 0})} 
+                      />
+                      {childData.kid_age <= 8 && childData.kid_age > 0 && (
+                        <p className="text-red-500 text-[11px] font-bold mt-2 ml-2 tracking-wide">
+                          L'âge doit être supérieur à 8 ans pour continuer.
+                        </p>
+                      )}
                     </div>
-                    <div>
-                      <label className="block mb-3 font-bold text-gray-700 text-sm ml-2">Date de naissance</label>
-                      <input type="date" className="input-setup" onChange={e => setChildData({...childData, birth_date: e.target.value})} />
-                    </div>
-                    <button onClick={() => setStep(3)} disabled={!childData.kid_age} className="bg-[#c5772d] text-white w-full py-6 rounded-[24px] font-extrabold text-lg mt-10 shadow-xl shadow-orange-900/10">Suivant →</button>
+                    
+                    <button 
+                      onClick={() => setStep(3)} 
+                      disabled={!childData.kid_age || childData.kid_age <= 8} 
+                      className="bg-[#c5772d] text-white w-full py-6 rounded-[24px] font-extrabold text-lg mt-10 shadow-xl shadow-orange-900/10 transition disabled:opacity-20"
+                    >
+                      Suivant →
+                    </button>
                   </div>
                 )}
 

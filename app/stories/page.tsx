@@ -4,22 +4,22 @@ import { supabase } from '@/lib/supabase'
 import { motion } from 'framer-motion'
 import Link from 'next/navigation'
 import { usePathname } from 'next/navigation'
-// 🌟 استدعاء الـ OnboardingTour من المجلد اللي برا
 import OnboardingTour from '@/components/OnboardingTour'
-// 🌟 استدعاء الـ Icons ديريكت من المكتبة لّي درنا ليها Install
 import { BookOpen, Trophy, Settings, LogOut } from 'lucide-react'
 
 export default function StoriesLibrary() {
   const [profile, setProfile] = useState<any>(null)
   const [stories, setStories] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  
+  // 🌟 State جديد باش نشعلو الأنيمسايون ملي يكليكي على شي قصة 🌟
+  const [isNavigating, setIsNavigating] = useState(false) 
+
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedLang, setSelectedLang] = useState("arabic") 
-  const [selectedStatus, setSelectedStatus] = useState("all") // 'all' | 'new' | 'in progress' | 'completed'
+  const [selectedStatus, setSelectedStatus] = useState("all") 
   
-  // 🌟 State للتحكم ف ظهور الـ Welcoming Tour للمشترك الجديد
   const [showTour, setShowTour] = useState(false)
-
   const pathname = usePathname()
 
   useEffect(() => {
@@ -27,7 +27,6 @@ export default function StoriesLibrary() {
       const { data: { session } } = await supabase.auth.getSession()
       
       if (session?.user) {
-        // 1. جلب بيانات البروفايل والـ XP + الحقل الجديد د الـ Onboarding
         const { data: profData } = await supabase
           .from('profiles')
           .select('id, kid_name, avatar_url, total_xp, has_seen_onboarding')
@@ -36,18 +35,15 @@ export default function StoriesLibrary() {
 
         setProfile(profData)
 
-        // 🔐 تشيك صارم: إيلا كان المشترك جديد وباقي ماشافش الـ Tour كنشعلوها
         if (profData && profData.has_seen_onboarding === false) {
           setShowTour(true)
         }
 
-        // 2. جلب القصص المتاحة من الـ Backend
         const { data: storyList } = await supabase
           .from('stories')
           .select('*')
           .order('created_at', { ascending: false })
 
-        // 3. جلب حالات القراءة الخاصة بهذا الطفل من جدول user_stories
         const { data: userStoriesProgress } = await supabase
           .from('user_stories')
           .select('story_id, status')
@@ -57,7 +53,6 @@ export default function StoriesLibrary() {
           userStoriesProgress?.map(item => [item.story_id, item.status]) || []
         )
 
-        // 4. دمج الحالات الديناميكية (Default هي New)
         const mappedStories = (storyList || []).map((story) => {
           const currentStatus = progressMap.get(story.id);
           return {
@@ -70,12 +65,14 @@ export default function StoriesLibrary() {
       } else {
         window.location.href = '/auth'
       }
-      setLoading(false)
+      
+      setTimeout(() => {
+        setLoading(false)
+      }, 1200)
     }
     loadData()
   }, [])
 
-  // 🛠️ الفلترة الذكية
   const filteredStories = stories.filter(story => {
     const matchesSearch = story.title?.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesStatus = selectedStatus === "all" || story.status?.toLowerCase() === selectedStatus.toLowerCase()
@@ -84,21 +81,42 @@ export default function StoriesLibrary() {
     return matchesSearch && matchesStatus && matchesLang
   })
 
-  if (loading) return (
-    <div className="h-screen flex items-center justify-center bg-[#fffcf1] font-black text-[#c47529] italic text-xl">
-      جاري فتح عالم الحكايات... ✨
-    </div>
-  )
+  // 🌟 Function باش نشعلو الأنيمسايون عاد نمشيو للقصة 🌟
+  const handleStoryClick = (storyId: string) => {
+    setIsNavigating(true); // كنشعلو اللودينغ
+    setTimeout(() => {
+      window.location.href = `/stories/${storyId}`; // كنمشيو للقصة من بعد نص ثانية
+    }, 600); 
+  }
 
   return (
-    <div className="w-full min-h-screen bg-[#fffcf1] p-4 md:p-8 font-sans antialiased text-[#3b1b0d]" dir="ltr">
+    <div className="w-full min-h-screen bg-[#fffcf1] p-4 md:p-8 font-sans antialiased text-[#3b1b0d] overflow-x-hidden" dir="ltr">
       
-      {/* 🌟 زرع الـ Component لداخل (غايظهر فقط للمشترك الجديد وبناءً على شرط سوبابيس) */}
-      {showTour && profile && <OnboardingTour profileId={profile.id} />}
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes instant-pulse { 0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; } 50% { transform: scale(1.1) rotate(3deg); opacity: 0.8; } }
+        .loading-overlay { position: fixed; inset: 0; background: #fffcf1; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; transition: opacity 0.4s ease-out, visibility 0.4s; }
+        .loading-overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+        .instant-logo { width: 80px; height: auto; animation: instant-pulse 1.8s ease-in-out infinite; }
+        @media (min-width: 768px) { .instant-logo { width: 120px; } }
+        .progress-bar-container { width: 180px; height: 4px; background: rgba(196, 117, 41, 0.1); border-radius: 10px; margin-top: 30px; overflow: hidden; }
+        .progress-bar-fill { width: 100%; height: 100%; background: #c47529; transform: translateX(-100%); animation: slide-progress 2s infinite linear; }
+        @keyframes slide-progress { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+      `}} />
+
+      {/* 🌟 زدنا شرط باش يبان اللودينغ لا فالبداية لا ملي نكليكيو على شي قصة 🌟 */}
+      <div className={`loading-overlay ${!loading && !isNavigating ? 'hidden' : ''}`}>
+        {/* 🌟 حيدنا داك الفيلتر الكحل باش يبان اللوغو بالألوان الحقيقية ديالو 🌟 */}
+        <img src="/assets/logo.svg" className="instant-logo" alt="Loading..." />
+        <div className="progress-bar-container"><div className="progress-bar-fill" /></div>
+        <p style={{ marginTop: '20px', color: '#c47529', fontWeight: '900', fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase' }}>
+          Préparation des histoires...
+        </p>
+      </div>
+
+      {showTour && profile && !loading && <OnboardingTour profileId={profile.id} />}
 
       <div className="max-w-[1400px] mx-auto flex flex-col gap-6">
         
-        {/* 1. TOP BAR */}
         <header className="w-full bg-white rounded-3xl p-4 flex items-center justify-between border border-[#f3eee0] shadow-sm">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full overflow-hidden bg-[#e6e2d1] flex items-center justify-center border-2 border-[#c47529]">
@@ -114,11 +132,10 @@ export default function StoriesLibrary() {
             </div>
           </div>
           
-          {/* 🌟 زِيـادة الـ ID: topbar-xp هنا باش الـ Tooltip يعيق بـ الـ XP والـ Level */}
           <div id="topbar-xp" className="flex items-center gap-3">
             <div className="bg-[#fff9e5] border border-[#f59e0b]/30 px-3 py-1 rounded-full flex items-center gap-1.5 text-xs font-bold text-[#f59e0b]">
               <span className="w-4 h-4 bg-[#f59e0b] text-white text-[10px] font-black rounded-full flex items-center justify-center">L</span>
-              Level <span className="font-black">{Math.floor((profile?.total_xp || 0) / 500) + 1}</span>
+              Niveau <span className="font-black">{Math.floor((profile?.total_xp || 0) / 500) + 1}</span>
             </div>
             <div className="bg-[#fff3e5] border border-[#c47529]/20 px-3 py-1 rounded-full flex items-center gap-1 text-xs font-bold text-[#c47529]">
               ✨ <span className="font-black">{profile?.total_xp || 0}</span> XP
@@ -126,28 +143,21 @@ export default function StoriesLibrary() {
           </div>
         </header>
 
-        {/* MAIN CONTAINER */}
         <div className="w-full flex flex-col lg:flex-row gap-6 items-start">
           
-          {/* 2. SIDEBAR */}
           <aside className="w-full lg:w-[260px] bg-white rounded-3xl p-4 flex flex-col gap-3 border border-[#f3eee0] shadow-sm lg:sticky lg:top-8">
             <button className={`w-full text-left rounded-2xl p-3 text-sm font-black flex items-center justify-between transition-all tracking-tight ${pathname === '/stories' ? 'bg-[#c47529] text-white shadow-md' : 'bg-white text-[#7a6657] hover:bg-[#fffcf1]'}`}>
               <span>Bibliothèque</span>
-              {/* 🌟 Icon د الكتاب نقي وعصري من الـ Library ديريكت */}
               <BookOpen className={`w-5 h-5 ${pathname === '/stories' ? 'text-white' : 'text-[#7a6657] opacity-80'}`} />
             </button>
             
-            {/* 🌟 زِيـادة الـ ID: sidebar-profile لربط الخطوة التانية د الـ Tour الشخصي */}
             <button id="sidebar-profile" onClick={() => window.location.href = '/profile'} className={`w-full text-left rounded-2xl p-3 text-sm font-bold flex items-center justify-between transition-all border border-transparent ${pathname === '/profile' ? 'bg-[#c47529] text-white shadow-md' : 'bg-white text-[#7a6657] hover:bg-[#fffcf1]'}`}>
               <span>Profil</span>
-              {/* 🌟 Icon د الكأس فخم من الـ Library ديريكت */}
               <Trophy className={`w-5 h-5 ${pathname === '/profile' ? 'text-white' : 'text-[#7a6657] opacity-60'}`} />
             </button>
             
-            {/* 🌟 زِيـادة الـ ID: sidebar-settings لربط الخطوة التالتة د الـ Coin د Parents */}
             <button id="sidebar-settings" onClick={() => window.location.href = '/settings'} className={`w-full text-left rounded-2xl p-3 text-sm font-bold flex items-center justify-between transition-all border border-transparent ${pathname === '/settings' ? 'bg-[#c47529] text-white shadow-md' : 'bg-white text-[#7a6657] hover:bg-[#fffcf1]'}`}>
               <span>Paramètres</span>
-              {/* 🌟 Icon د الـ سيتينغ من الـ Library ديريكت */}
               <Settings className={`w-5 h-5 ${pathname === '/settings' ? 'text-white' : 'text-[#7a6657] opacity-60'}`} />
             </button>
             
@@ -158,19 +168,16 @@ export default function StoriesLibrary() {
               className="w-full text-left bg-white text-[#7a6657] hover:bg-red-50 hover:text-red-600 transition-all rounded-2xl p-3 text-sm font-bold flex items-center justify-between border border-transparent group"
             >
               <span>Se déconnecter</span>
-              {/* 🌟 Icon د الـ LogOut واجد ومفيني مية فالمية */}
               <LogOut className="w-5 h-5 text-[#7a6657] opacity-60 group-hover:text-red-600 group-hover:opacity-100 transition-all" />
             </button>
           </aside>
 
-          {/* 3. CONTENT AREA */}
           <main className="flex-1 w-full bg-white rounded-[36px] p-6 md:p-8 border border-[#f3eee0] shadow-sm flex flex-col items-center">
             
             <h2 className="text-xl md:text-2xl font-bold text-center max-w-md tracking-tight mb-6" style={{ fontFamily: "'Poppins', sans-serif" }}>
               Qu'est-ce que tu veux lire aujourd'hui ?
             </h2>
 
-            {/* SEARCH */}
             <div className="w-full max-w-[540px] relative mb-6">
               <input 
                 type="text" 
@@ -183,7 +190,6 @@ export default function StoriesLibrary() {
               <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-40 text-lg">🔍</span>
             </div>
 
-            {/* FILTERS BAR */}
             <div className="w-full flex flex-col sm:flex-row items-center justify-center gap-4 mb-8 border-b border-[#f3eee0] pb-6">
               <div className="flex items-center gap-2 bg-[#fffcf1] p-1.5 rounded-full border border-[#f3eee0]">
                 {[
@@ -229,7 +235,6 @@ export default function StoriesLibrary() {
               </div>
             </div>
 
-            {/* STORIES DYNAMIC GRID */}
             {selectedLang !== "arabic" ? (
               <div className="w-full py-20 text-center flex flex-col items-center justify-center gap-2">
                 <span className="text-4xl animate-bounce">✨</span>
@@ -245,7 +250,6 @@ export default function StoriesLibrary() {
                   const borderClass = isNew ? "border-[#22c55e]" : isInProgress ? "border-[#f59e0b]" : "border-[#eab308]";
                   const btnLabel = isNew ? "Commencer à lire" : isInProgress ? "Continuer" : "Relire";
 
-                  // 🌟 هنا درنا المتغير د الترجمة باش الواجهة تولي فرنسية بلا ما نقيسو الفلتر
                   const displayStatus = isNew ? "NOUVEAU" : isInProgress ? "EN COURS" : "TERMINÉ";
 
                   return (
@@ -255,7 +259,8 @@ export default function StoriesLibrary() {
                       animate={{ opacity: 1, y: 0 }}
                       whileHover={{ y: -6, scale: 1.02 }}
                       className={`w-full aspect-[4/3] rounded-[28px] border-[3px] ${borderClass} relative overflow-hidden group shadow-sm bg-black cursor-pointer`}
-                      onClick={() => window.location.href = `/stories/${story.id}`}
+                      // 🌟 عيطنا على الفانكشن لي كتشعل اللودينغ عاد كتمشي للقصة 🌟
+                      onClick={() => handleStoryClick(story.id)}
                     >
                       <img 
                         src={story.cover_url || "/assets/story1.png"} 
@@ -266,9 +271,7 @@ export default function StoriesLibrary() {
 
                       <div className="absolute inset-0 p-5 flex flex-col justify-end items-start text-white text-left">
                         <div className="flex items-center gap-1.5 mb-2">
-                          {/* 🌟 رديناها ARABE */}
                           <span className="bg-white/20 backdrop-blur-md text-[9px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">ARABE</span>
-                          {/* 🌟 عيطنا على الحالة المترجمة هنا */}
                           <span className="bg-white/20 backdrop-blur-md text-[9px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
                             {displayStatus}
                           </span>
@@ -294,7 +297,6 @@ export default function StoriesLibrary() {
               </div>
             )}
 
-            {/* LOAD MORE BUTTON */}
             {selectedLang === "arabic" && filteredStories.length > 0 && (
               <button className="mt-8 border-2 border-[#f3eee0] text-[#7a6657] hover:bg-[#fffcf1] transition-colors font-black text-xs uppercase tracking-wider px-12 py-3 rounded-2xl shadow-sm">
                 Voir plus

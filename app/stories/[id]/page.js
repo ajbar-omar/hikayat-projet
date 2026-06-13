@@ -64,7 +64,7 @@ export default function StoryPlayer() {
     }
   }, [])
 
-  // 3. جـلـب الـمـشـاهـد + جـلـب آخـر تـقـدُّم
+  // 3. جـلـب الـمـشـاهـد + جـلـب آخـر تـقـدُّم
   useEffect(() => {
     async function fetchStoryData() {
       if (!storyId) return
@@ -79,7 +79,7 @@ export default function StoryPlayer() {
       const fetchedScenes = scenesData || []
       setScenes(fetchedScenes)
 
-      // جـلـب آخـر تـقـدُّم مـحـفـوظ لـلـطّـفـل
+      // جـلـب آخـر تـقـدُّم مـحـفـوظ لـلـطّـفـل
       const { data: { session } } = await supabase.auth.getSession()
       if (session?.user) {
         const { data: progressData } = await supabase
@@ -228,9 +228,7 @@ export default function StoryPlayer() {
   }
 
   if (loading) return (
-    <div className="h-screen bg-black text-[#7c5c3e] flex items-center justify-center font-bold italic text-2xl">
-      جاري فتح بوابة الحكاية... ✨
-    </div>
+    <div className="h-screen bg-black text-[#7c5c3e] flex items-center justify-center font-bold italic text-2xl"></div>
   )
 
   return (
@@ -250,10 +248,9 @@ export default function StoryPlayer() {
           <span>المكتبة</span>
         </button>
 
-        {/* 🌟 زر الـ Mute الـمـحـمـي ديـالـك بـالـقـفـل د الـ Stop Propagation */}
         <button 
           onClick={(e) => {
-            e.stopPropagation(); // 🛑 حـظـر انـتـشـار الـ كـلـيـكـة لـلـخـارج لـمـنـع تـشـغـيـل مـوزِيـكـا الـ خـلـفـيـة
+            e.stopPropagation();
             setIsMuted(!isMuted);
           }} 
           className="bg-white/90 text-[#7c5c3e] w-14 h-14 rounded-full flex items-center justify-center shadow-2xl backdrop-blur-md hover:scale-110 transition-all border border-[#e8ddd3]"
@@ -305,45 +302,52 @@ export default function StoryPlayer() {
 
       {/* --- واجـهـة الـاخـتـبـار --- */}
       {showQuiz && (
-        <div className="fixed inset-0 z-[2000] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6 text-right" dir="rtl">
-          <div className="max-w-xl w-full bg-[#1a1510] border border-[#7c5c3e]/30 p-10 rounded-[40px] shadow-2xl relative">
+        <div className="fixed inset-0 z-[2000] bg-black/95 backdrop-blur-xl flex items-center justify-center p-6 text-center" dir="ltr">
+          {/* 🌟 رجعناها max-w-lg باش تجي متناسقة فـ العرض وما طوالش بزاف 🌟 */}
+          <div className={`w-full bg-[#fffcf1] border border-[#7c5c3e]/20 p-8 md:p-10 rounded-[40px] shadow-2xl relative transition-all duration-500 max-w-lg`}>
+            
             {!isQuizFinished ? (
-              <div className="w-full text-center">
+              <div className="w-full">
                 <div className="flex gap-2 mb-8">
                   {quizzes.map((_, i) => (
-                    <div key={i} className={`h-1 flex-1 rounded-full transition-all duration-500 ${i <= currentQuizStep ? 'bg-[#7c5c3e]' : 'bg-white/10'}`} />
+                    <div key={i} className={`h-1 flex-1 rounded-full transition-all duration-500 ${i <= currentQuizStep ? 'bg-[#c47529]' : 'bg-[#7c5c3e]/10'}`} />
                   ))}
                 </div>
-                <h2 className="text-[#e8ddd3] text-2xl md:text-3xl font-bold mb-8 leading-tight">{quizzes[currentQuizStep]?.question}</h2>
+                <h2 className="text-[#3b1b0d] text-xl md:text-2xl font-bold mb-8 leading-tight">{quizzes[currentQuizStep]?.question}</h2>
                 <div className="flex flex-col gap-4">
                   {quizzes[currentQuizStep]?.options.map((option, index) => {
                     const isCorrect = index === quizzes[currentQuizStep].correct_answer_index;
                     const isSelected = selectedOption === index;
-                    let btnStyle = "border-[#7c5c3e]/20 text-[#e8ddd3]";
+                    
+                    let btnStyle = "border-[#e8ddd3] bg-white text-[#3b1b0d]";
                     if (selectedOption !== null) {
-                        if (isCorrect) btnStyle = "border-green-500 bg-green-500/20 text-white shadow-[0_0_20px_rgba(34,197,94,0.3)]";
-                        else if (isSelected) btnStyle = "border-red-500 bg-red-500/20 text-white shadow-[0_0_20px_rgba(239,68,68,0.3)]";
+                        if (isCorrect) btnStyle = "border-green-500 bg-green-500 text-white";
+                        else if (isSelected) btnStyle = "border-red-500 bg-red-500 text-white";
                     }
+
                     return (
-                      <button key={index} disabled={selectedOption !== null} onClick={() => handleAnswerClick(index)} className={`p-5 border rounded-2xl text-right transition-all duration-300 flex justify-between items-center ${btnStyle}`}>
-                        <span className="text-lg">{option}</span>
-                        {selectedOption !== null && isCorrect && <span>✅</span>}
-                        {selectedOption === index && !isCorrect && <span>❌</span>}
+                      <button key={index} disabled={selectedOption !== null} onClick={() => handleAnswerClick(index)} className={`p-4 border-2 rounded-2xl transition-all duration-300 font-bold ${btnStyle}`}>
+                        {option}
                       </button>
                     )
                   })}
                 </div>
               </div>
             ) : (
-              <div className="text-center py-6">
-                <div className="text-6xl mb-6 font-bold">🏆</div>
-                <h2 className="text-[#e8ddd3] text-3xl font-black mb-2 tracking-wide">مـذهـل يـا بـطـل!</h2>
-                <div className="bg-[#7c5c3e]/10 p-8 rounded-[35px] mb-10 border border-[#7c5c3e]/20 inline-block px-14 shadow-inner">
-                   <p className="text-white font-black text-5xl">+{xpEarned} XP</p>
+              // 🌟 الديزاين الجديد ديال التهنئة: مجموع، متناسق، وبلا عمارات 🌟
+              <div className="flex flex-col items-center">
+                <img src="/assets/nanna-zahra-5.png" alt="Nanna Zahra" className="w-36 md:w-50 h-auto object-contain mb-3" />
+                <h2 className="text-[#3b1b0d] text-2xl md:text-3xl font-black mb-1">Félicitations !</h2>
+                <p className="text-[#7a6657] mb-5 px-4 font-medium text-sm md:text-base">Vous avez répondu correctement aux questions et gagné</p>
+                
+                <div className="bg-[#c47529]/10 px-8 py-4 rounded-[20px] mb-6 border border-[#c47529]/20 inline-block">
+                   <p className="text-[#c47529] font-black text-3xl md:text-4xl">+{xpEarned} XP!</p>
                 </div>
-                <button onClick={() => window.location.href = '/stories'} className="w-full bg-[#7c5c3e] text-white py-5 rounded-3xl font-black text-xl hover:scale-105 active:scale-95 transition-all shadow-xl shadow-[#7c5c3e]/20">
-                  الـعـودة لـلـمـكـتـبـة
+
+                <button onClick={() => window.location.href = '/stories'} className="w-full bg-[#c47529] text-white py-4 rounded-2xl font-black text-lg hover:scale-105 active:scale-95 transition-all shadow-xl shadow-[#c47529]/20">
+                  Terminer l'histoire
                 </button>
+                <p className="text-[#7a6657]/60 text-[10px] md:text-xs mt-5 italic">"Continue comme ça ! Chaque histoire te rend plus intelligent et plus fort !"</p>
               </div>
             )}
           </div>

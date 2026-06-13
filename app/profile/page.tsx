@@ -75,7 +75,10 @@ export default function ProfilePage() {
       } catch (error) {
         console.error("Error loading profile or leaderboard:", error)
       } finally {
-        setLoading(false)
+        // 🌟 زدنا مهلة زمنية صغيرة باش الأنيمسايون تبان زوينة قبل ما تختفي 🌟
+        setTimeout(() => {
+          setLoading(false)
+        }, 1200)
       }
     }
     getProfileAndLeaderboard()
@@ -96,9 +99,22 @@ export default function ProfilePage() {
   const top3 = leaderboard[2]
   const restOfKids = leaderboard.slice(3)
 
+  // 🌟 هنا بدلنا الـ Loading القديم بالـ Loading الجديد والأنيمسايون 🌟
   if (loading) return (
-    <div className="h-screen bg-[#fffcf1] flex items-center justify-center font-black text-[#c47529] italic text-xl">
-      Loading Hero Records... ✨
+    <div className="h-screen bg-[#fffcf1] flex flex-col items-center justify-center font-sans text-[#c47529]">
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes instant-pulse { 0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; } 50% { transform: scale(1.1) rotate(3deg); opacity: 0.8; } }
+        .instant-logo { width: 80px; height: auto; animation: instant-pulse 1.8s ease-in-out infinite; }
+        @media (min-width: 768px) { .instant-logo { width: 120px; } }
+        .progress-bar-container { width: 180px; height: 4px; background: rgba(196, 117, 41, 0.1); border-radius: 10px; margin-top: 30px; overflow: hidden; }
+        .progress-bar-fill { width: 100%; height: 100%; background: #c47529; transform: translateX(-100%); animation: slide-progress 2s infinite linear; }
+        @keyframes slide-progress { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+      `}} />
+      <img src="/assets/logo.svg" className="instant-logo" alt="Loading..." />
+      <div className="progress-bar-container"><div className="progress-bar-fill" /></div>
+      <p style={{ marginTop: '20px', fontWeight: '900', fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase' }}>
+        Chargement du profil...
+      </p>
     </div>
   )
 
@@ -179,8 +195,8 @@ export default function ProfilePage() {
                 </div>
                 <div className="flex flex-col items-start gap-1">
                   <h2 className="text-xl font-black text-[#3b1b0d]">{profile?.kid_name}</h2>
-                  <div className="bg-[#c47529] text-white text-xs font-black px-3 py-1 rounded-xl flex items-center gap-1.5 shadow-sm italic uppercase">
-                    <span>Explorer Lv.{level}</span> 🏆
+                  <div className="bg-[#c47529] text-white text-xs font-black px-3 py-1 rounded-xl flex items-center gap-1.5 shadow-sm  uppercase">
+                    <span> Niveau            {level}</span> 
                   </div>
                 </div>
               </div>

@@ -1,7 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-// 🌟 استدعاء الـ Icons من مكتبة lucide-react 🌟
 import { 
   Sparkles, PlusCircle, Library, Trash2, Film, ChevronUp, ChevronDown, 
   ImagePlus, Mic, CheckCircle, BrainCircuit, Edit2, LogOut, Save
@@ -26,6 +25,9 @@ export default function GlobalCMS() {
   const [editContent, setEditContent] = useState('')
   const [editMediaFile, setEditMediaFile] = useState(null)
   const [editAudioFile, setEditAudioFile] = useState(null)
+
+  // 🌟 State جديد باش نشعلو شاشة التحميل الكبيرة ملي نكونو كنرفعو شي ملف ثقيل 🌟
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false)
 
   const [quizData, setQuizData] = useState([
     { question: '', options: ['', '', '', ''], correct_answer_index: 0 },
@@ -76,9 +78,21 @@ export default function GlobalCMS() {
     setLoading(false); setTimeout(() => setStatus(''), 2000)
   }
 
+  // 🌟 دالة باش تنقي سمية الملف من أي حرف يقدر يسبب إيرور فـ Supabase 🌟
+  const sanitizeFileName = (fileName) => {
+    return fileName
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // كتحيد ليزكسون
+      .replace(/[^a-zA-Z0-9.\-_]/g, "_") // كترد المسافات والحروف الغريبة لـ (_)
+      .toLowerCase();
+  };
+
   async function uploadToMedia(file) {
     if (!file) return null
-    const fileName = `scenes/${Date.now()}_${file.name.replace(/\s/g, '_')}`
+    // 🌟 استعملنا الدالة ديال التنقية هنا باش عمرك تطيح فـ Invalid Key 🌟
+    const cleanName = sanitizeFileName(file.name)
+    const fileName = `scenes/${Date.now()}_${cleanName}`
+    
     const { data, error } = await supabase.storage.from('media').upload(fileName, file)
     if (error) throw error
     const { data: urlData } = supabase.storage.from('media').getPublicUrl(fileName)
@@ -87,6 +101,9 @@ export default function GlobalCMS() {
 
   async function handleAddScene() {
     if (!content) return alert('عافاك اكتب نص المشهد')
+    
+    // 🌟 كنشعلو الشاشة د الانتظار حيت هادي هي اللحظة اللي كياخد فيها الرفع وقت طويل 🌟
+    setIsUploadingMedia(true) 
     setLoading(true); setStatus('جاري رفع الملفات والحفظ...')
     try {
       const videoUrl = await uploadToMedia(sceneMedia)
@@ -109,11 +126,15 @@ export default function GlobalCMS() {
       alert('فشل الرفع: ' + err.message)
       console.error(err)
     } finally {
+      // 🌟 كنطفيو الشاشة د الانتظار ملي يسالي كلشي 🌟
+      setIsUploadingMedia(false)
       setLoading(false); setTimeout(() => setStatus(''), 2000)
     }
   }
 
   async function saveSceneEdit(sc) {
+    // 🌟 نفس القضية هنا، كنشعلو شاشة الانتظار فـ حالة كاين ملفات تقال كيترفعو 🌟
+    setIsUploadingMedia(true)
     setLoading(true); setStatus('جاري تحديث المشهد والميديا...')
     
     let updatedVideoUrl = sc.video_url
@@ -137,6 +158,8 @@ export default function GlobalCMS() {
     } catch (err) {
       alert('فشل التحديث: ' + err.message)
     } finally {
+      // 🌟 كنطفيوها 🌟
+      setIsUploadingMedia(false)
       setLoading(false); setTimeout(() => setStatus(''), 2000)
     }
   }
@@ -163,6 +186,25 @@ export default function GlobalCMS() {
 
   return (
     <div dir="rtl" style={{ minHeight: '100vh', background: C.bg, fontFamily: "'IBM Plex Sans Arabic', sans-serif", color: C.text, paddingBottom: '100px' }}>
+      
+      {/* 🌟 شاشة التحميل الكبيرة (Overlay) لي كتغطي كلشي ملي كترفع فيديو تقيل 🌟 */}
+      {isUploadingMedia && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.85)', zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'white', backdropFilter: 'blur(5px)' }}>
+          <style>{`
+            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+            @keyframes pulse-text { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+          `}</style>
+          <div style={{ border: '4px solid rgba(255,255,255,0.2)', borderTop: `4px solid ${C.brownLight}`, borderRadius: '50%', width: '60px', height: '60px', animation: 'spin 1s linear infinite', marginBottom: '25px' }} />
+          <h2 style={{ fontFamily: "'IBM Plex Sans Arabic', sans-serif", fontWeight: 700, fontSize: '24px', margin: '0 0 10px 0', animation: 'pulse-text 2s infinite' }}>
+            جاري رفع الملفات...
+          </h2>
+          <p style={{ color: '#ccc', fontSize: '14px', maxWidth: '350px', textAlign: 'center', lineHeight: '1.6' }}>
+            حجم الملفات قد يتطلب بعض الوقت (خاصة مقاطع الفيديو).<br/>
+            <strong style={{ color: C.brownLight }}>المرجو عدم إغلاق هذه الصفحة حتى تكتمل العملية.</strong>
+          </p>
+        </div>
+      )}
+
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 30px' }}>
         
         <header style={{ padding: '40px 0', borderBottom: `2px solid ${C.border}`, marginBottom: '50px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -182,14 +224,23 @@ export default function GlobalCMS() {
                 <PlusCircle size={18} /> إضافة حكاية جديدة
               </h3>
               <form onSubmit={async (e) => {
-                  e.preventDefault(); setLoading(true); setStatus('جاري الحفظ...')
-                  const coverFile = e.target.cover.files[0]
-                  const fileName = `${Date.now()}_${coverFile.name}`
-                  await supabase.storage.from('story-covers').upload(`covers/${fileName}`, coverFile)
-                  const { data: urlData } = supabase.storage.from('story-covers').getPublicUrl(`covers/${fileName}`)
-                  const { error } = await supabase.from('stories').insert([{ title, description, cover_url: urlData.publicUrl }])
-                  if (!error) { setTitle(''); setDescription(''); e.target.reset(); fetchStories(); setStatus('تمت الإضافة بنجاح') }
-                  setLoading(false); setTimeout(() => setStatus(''), 2000)
+                  e.preventDefault(); 
+                  setIsUploadingMedia(true); // حتى فـ رفع الكوفر نشعلو اللودينغ للاحتياط
+                  setLoading(true); setStatus('جاري الحفظ...')
+                  try {
+                    const coverFile = e.target.cover.files[0]
+                    const cleanName = sanitizeFileName(coverFile.name)
+                    const fileName = `${Date.now()}_${cleanName}`
+                    await supabase.storage.from('story-covers').upload(`covers/${fileName}`, coverFile)
+                    const { data: urlData } = supabase.storage.from('story-covers').getPublicUrl(`covers/${fileName}`)
+                    const { error } = await supabase.from('stories').insert([{ title, description, cover_url: urlData.publicUrl }])
+                    if (!error) { setTitle(''); setDescription(''); e.target.reset(); fetchStories(); setStatus('تمت الإضافة بنجاح') }
+                  } catch (err) {
+                    alert('خطأ: ' + err.message)
+                  } finally {
+                    setIsUploadingMedia(false)
+                    setLoading(false); setTimeout(() => setStatus(''), 2000)
+                  }
               }}>
                 <input style={{ width: '100%', padding: '16px', borderRadius: '12px', border: `1px solid ${C.border}`, marginBottom: '15px', background: C.surfaceAlt }} placeholder="عنوان القصة..." value={title} onChange={(e) => setTitle(e.target.value)} required />
                 
@@ -350,7 +401,7 @@ export default function GlobalCMS() {
                 )}
               </div>
 
-              {/* 🌟 Accordion الاختبار المصلح والاحترافي 🌟 */}
+              {/* Accordion الاختبار المصلح والاحترافي */}
               <div style={{ marginBottom: '20px' }}>
                 <div onClick={() => setOpenSection(openSection === 'quiz' ? '' : 'quiz')} style={{ padding: '22px 35px', background: openSection === 'quiz' ? '#edf7f2' : C.surfaceAlt, borderRadius: openSection === 'quiz' ? '22px 22px 0 0' : '22px', display: 'flex', justifyContent: 'space-between', cursor: 'pointer', border: `1px solid ${C.border}` }}>
                   <span style={{ fontWeight: 800, color: C.green, display: 'flex', alignItems: 'center', gap: '8px' }}>

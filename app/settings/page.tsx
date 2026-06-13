@@ -4,7 +4,6 @@ import { supabase } from '@/lib/supabase'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-// 🌟 زدنا Clock ف الـ Import هنا باش تخدم ديريكت من المكتبة
 import { BookOpen, Trophy, Settings, LogOut, Languages, Volume2, Users, Lock, Music, Sparkles, Clock } from 'lucide-react'
 
 interface UserProfile {
@@ -21,8 +20,8 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const pathname = usePathname()
 
-  // 🎛️ الـ States ديال الـ UI مربوطين ديناميكياً مع الباكيند
-  const [selectedLang, setSelectedLang] = useState('EN')
+  // 🌟 ردينا FR هي اللي مختارة بار ديفو 🌟
+  const [selectedLang, setSelectedLang] = useState('FR')
   const [soundEffects, setSoundEffects] = useState(true)
   const [bgMusic, setBgMusic] = useState(true)
   const [timeLimit, setTimeLimit] = useState(60)
@@ -40,38 +39,34 @@ export default function SettingsPage() {
           
           if (data) {
             setProfile(data)
-            // 🌟 قراءة الحقول الحقيقية من السوبابيس فوراً عند فتح الصفحة
             setBgMusic(data.bg_music !== false)
             setSoundEffects(data.sound_effects !== false)
           }
         } else {
-          // Fallback للمعاينة ف اللوكالهوست
           setProfile({ id: 'mock', kid_name: 'Yasmin El amrani', total_xp: 750 })
         }
       } catch (error) {
         console.error(error)
       } finally {
-        setLoading(false)
+        setTimeout(() => {
+          setLoading(false)
+        }, 1200)
       }
     }
     getProfileData()
   }, [])
 
-  // 🌟 الفانكشن السحرية لتحديث الصوت ف الباكيند والـ LocalStorage لايف
   const handleToggleSetting = async (type: 'bg_music' | 'sound_effects', currentValue: boolean) => {
     const newValue = !currentValue
     
-    // 1. تحديث الـ State ف البلاصة باش الـ UI يتحرك سريعاً
     if (type === 'bg_music') setBgMusic(newValue)
     if (type === 'sound_effects') setSoundEffects(newValue)
 
-    // 2. إعلام الـ RootLayout لايف عبر الـ LocalStorage إذا كانت bg_music
     if (type === 'bg_music') {
       localStorage.setItem('bg_music_enabled', String(newValue))
       window.dispatchEvent(new Event('storage'))
     }
 
-    // 3. حفظ القيمة الحقيقية ف داتابيز السوبابيس
     const { data: { session } } = await supabase.auth.getSession()
     if (session?.user) {
       await supabase
@@ -85,8 +80,20 @@ export default function SettingsPage() {
   const level = Math.floor(totalXp / 500) + 1
 
   if (loading) return (
-    <div className="h-screen bg-[#fffcf1] flex items-center justify-center font-black text-[#c47529] italic text-xl">
-      Loading Settings... ✨
+    <div className="h-screen bg-[#fffcf1] flex flex-col items-center justify-center font-sans text-[#c47529]">
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes instant-pulse { 0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; } 50% { transform: scale(1.1) rotate(3deg); opacity: 0.8; } }
+        .instant-logo { width: 80px; height: auto; animation: instant-pulse 1.8s ease-in-out infinite; }
+        @media (min-width: 768px) { .instant-logo { width: 120px; } }
+        .progress-bar-container { width: 180px; height: 4px; background: rgba(196, 117, 41, 0.1); border-radius: 10px; margin-top: 30px; overflow: hidden; }
+        .progress-bar-fill { width: 100%; height: 100%; background: #c47529; transform: translateX(-100%); animation: slide-progress 2s infinite linear; }
+        @keyframes slide-progress { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+      `}} />
+      <img src="/assets/logo.svg" className="instant-logo" alt="Loading..." />
+      <div className="progress-bar-container"><div className="progress-bar-fill" /></div>
+      <p style={{ marginTop: '20px', fontWeight: '900', fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase' }}>
+        Chargement des paramètres...
+      </p>
     </div>
   )
 
@@ -293,7 +300,6 @@ export default function SettingsPage() {
     </div>
   )
 }
-
 
 // 'use client'
 // import { useState, useEffect } from 'react'
