@@ -1,14 +1,14 @@
 ﻿'use client'
 import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
+import { style } from "framer-motion/client";
+// 🌟 جبنا الأيقونات ديال السوشيال ميديا و LE PROCESSUS من المكتبة باش يخدمو نيشات 🌟
+import { BookOpen, Globe, ShieldCheck, TrendingUp, Facebook, Instagram, Linkedin, Check, List, CheckCircle } from "lucide-react";
 
 const ASSETS = {
-  // 🌍 الخلفيات واللوغو (Local Assets من الـ PC بـ الصيغ الصحيحة)
   logo: "/assets/logo.svg", 
-  magicWorld: "/assets/magic_world.jpg", // الخلفية السينمائية الكبيرة للـ Hero كامل
+  magicWorld: "/assets/magic_world.jpg", 
   sectionBackground: "/assets/sectionBackground.png",
-
-  // 📚 تصاور السيكشنز الأخرى بـ صيغة .png
   section2Books: [
     "/assets/story1.png",
     "/assets/story2.png",
@@ -25,42 +25,24 @@ const ASSETS = {
     "/assets/story5.png",
     "/assets/story6.png",
   ],
-
-  // 🛠️ الأيقونات والنجوم (SVG داتا مباشرة ومؤمنة)
   arrowRight: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='3' d='M14 5l7 7m0 0l-7 7m7-7H3'/></svg>",
   playIcon: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='currentColor' viewBox='0 0 24 24'><path d='M8 5v14l11-7z'/></svg>",
-  stepBadge: "", 
-  iconCheck: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23c47529'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='3' d='M5 13l4 4L19 7'/></svg>",
-  iconRead: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23c47529'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253'/></svg>",
-  iconList: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23c47529'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2'/></svg>",
-  iconCheckCircle: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23c47529'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'/></svg>",
-  starWhite: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='white' viewBox='0 0 24 24'><path d='M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z'/></svg>",
-  starGold: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='%23f59e0b' viewBox='0 0 24 24'><path d='M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z'/></svg>",
-  
-  // 👤 الأفاتار وشخصيات الـ CTA
-  testimonialAvatars: [
-    "/assets/avatar1.png",
-    "/assets/avatar2.png",
-    "/assets/avatar3.png",
-  ],
-  ctaCharacter: "/assets/ctaCharacter.png",
+  ctaCharacter: "/assets/nanna-zahra-4.png",
   ctaArrow: "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'><path strokeLinecap='round' strokeLinejoin='round' strokeWidth='2' d='M14 5l7 7m0 0l-7 7m7-7H3'/></svg>",
   footerLogo: "/assets/logo.svg",
-  socialFacebook: "",
-  socialInstagram: "",
-  socialLinkedin: "",
   footerDivider: "",
 } as const;
 
-const NAV_LINKS = ["Home", "About", "The process", "Feedbacks"] as const;
+const NAV_LINKS = [
+  { label: "Accueil", href: "#home" },
+  { label: "À propos", href: "#how-it-works" },
+  { label: "Le processus", href: "#process" },
+  { label: "La mission", href: "#mission" }
+] as const;
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 48 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] as const },
-  },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] as const } },
 };
 
 const stagger = {
@@ -68,65 +50,37 @@ const stagger = {
   visible: { transition: { staggerChildren: 0.12, delayChildren: 0.1 } },
 };
 
-/** Step markers */
+// 🌟 حطينا الأيقونات الحقيقية ديال lucide-react هنا 🌟
 const PROCESS_STEPS = [
-  { step: 1, label: "Choose a Story", icon: ASSETS.iconCheck, position: "top" as const, leftPercent: 18.7 },
-  { step: 2, label: "Read the story", icon: ASSETS.iconRead, position: "bottom" as const, leftPercent: 50 },
-  { step: 3, label: "Answer questions", icon: ASSETS.iconList, position: "top" as const, leftPercent: 65.6 },
-  { step: 4, label: "Complete the quiz", icon: ASSETS.iconCheckCircle, position: "bottom" as const, leftPercent: 81.2 },
+  { step: 1, label: "Choisissez une histoire", icon: Check, position: "top" as const, leftPercent: 18.7 },
+  { step: 2, label: "Lisez l'histoire", icon: BookOpen, position: "bottom" as const, leftPercent: 50 },
+  { step: 3, label: "Répondez aux questions", icon: List, position: "top" as const, leftPercent: 65.6 },
+  { step: 4, label: "Gagnez des points", icon: CheckCircle, position: "bottom" as const, leftPercent: 81.2 },
 ] as const;
 
 const BOOK_OVERLAP = 64;
 
-const TESTIMONIALS = [
-  {
-    quote: "My daughter loves the stories! She's learning French without even realizing it. It's amazing.",
-    name: "Fatima Z.",
-    role: "mother of Lina (7 years old)",
-    avatar: ASSETS.testimonialAvatars[0],
-    featured: true,
-  },
-  {
-    quote: "My daughter loves the stories! She's learning French without even realizing it. It's amazing.",
-    name: "Fatima Z.",
-    role: "mother of Lina (7 years old)",
-    avatar: ASSETS.testimonialAvatars[1],
-    featured: false,
-  },
-  {
-    quote: "My daughter loves the stories! She's learning French without even realizing it. It's amazing.",
-    name: "Fatima Z.",
-    role: "mother of Lina (7 years old)",
-    avatar: ASSETS.testimonialAvatars[2],
-    featured: false,
-  },
+const MISSION_VALUES = [ 
+  { icon: BookOpen, title: "Préserver", description: "Préserver la richesse de nos histoires et de notre culture." },
+  { icon: Globe, title: "Partager", description: "Rendre les histoires accessibles aux enfants, aux familles et aux éducateurs." },
+  { icon: ShieldCheck, title: "Protéger", description: "Chaque histoire est examinée pour être sûre, respectueuse et culturellement précise." },
+  { icon: TrendingUp, title: "Grandir", description: "Nous construisons une plateforme qui soutient les conteurs et inspire les nouvelles générations." }
 ] as const;
 
 const FOOTER_LINKS = {
   product: [
-    { label: "How it works", href: "#how-it-works" },
-    { label: "Stories", href: "#stories" },
+    { label: "Support", href: "#how-it-works" },
+    { label: "Contact", href: "#stories" },
   ],
   company: [
-    { label: "About", href: "#about" },
-    { label: "Contact", href: "#contact" },
+    { label: "À Propos", href: "#how-it-works" },
+    { label: "Histoires", href: "#contact" },
   ],
   legal: [
-    { label: "Privacy", href: "#privacy" },
-    { label: "Terms", href: "#terms" },
+    { label: "Les conditions", href: "#privacy" },
+   
   ],
 } as const;
-
-function StarRow({ variant }: { variant: "white" | "gold" }) {
-  const src = variant === "white" ? ASSETS.starWhite : ASSETS.starGold;
-  return (
-    <div className="flex gap-2">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <img key={i} src={src} alt="" className="h-6 w-6" aria-hidden />
-      ))}
-    </div>
-  );
-}
 
 export default function HekayatHeroSection() {
   const [isLoading, setIsLoading] = useState(true);
@@ -152,8 +106,8 @@ export default function HekayatHeroSection() {
   return (
     <main className="relative w-full min-h-screen bg-white overflow-x-hidden">
       
-      {/* 1. ✅ رجعنا الـ INSTANT CSS LOADER القديم المعتمد باللوغو الأصلي والأنيميشن الأصلي */}
       <style dangerouslySetInnerHTML={{ __html: `
+        html { scroll-behavior: smooth; }
         @keyframes instant-pulse { 0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; } 50% { transform: scale(1.1) rotate(3deg); opacity: 0.8; } }
         .loading-overlay { position: fixed; inset: 0; background: #fffcf1; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; transition: opacity 0.6s ease-out, visibility 0.6s; }
         .loading-overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
@@ -172,81 +126,96 @@ export default function HekayatHeroSection() {
         <p style={{ marginTop: '20px', color: '#c47529', fontWeight: '900', fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase' }}>Loading Adventure...</p>
       </div>
 
-      {/* 2. MAIN HERO CONTENT */}
-      {/* ✅ الـ Hero section شاد الـ magic_world.jpg كـ خلفية أساسية كاملة فخمة والكتست فوق منها */}
       <motion.section 
+        id="home"
         initial={{ opacity: 0 }} 
         animate={{ opacity: isLoading ? 0 : 1 }} 
         transition={{ duration: 0.8 }} 
         className="relative flex flex-col min-h-screen bg-black"
       >
-        {/* الخلفية السينمائية الكبيرة مغطية الهيرو كامل */}
         <div className="pointer-events-none absolute inset-0 z-0" aria-hidden>
           <img src={ASSETS.magicWorld} alt="" className="h-full w-full object-cover brightness-[0.55] contrast-[1.05]" />
-          {/* الـ Overlay التدرجي لدمج السيكشن مع التانية بسلاسة ممسوحة وبدون خطوط فاصلة */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-[#fffcf1]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/35 to-[#fffcf1]" />
         </div>
 
-        {/* ✅ الـ Header الأصلي رجع باللوغو ديالك فـ بلاصتو عايم بنقاوة */}
-        <header className="relative z-[100] flex w-full items-center justify-between px-6 py-4 bg-black/15 backdrop-blur-md shadow-sm md:px-20 border-b border-white/5">
-          <a href="#home"><img src={ASSETS.logo} alt="Hekayat" className="h-10 md:h-12 w-auto object-contain" /></a>
-          <button className="lg:hidden text-white p-2" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={isMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16m-7 6h7"} /></svg>
+        <header className="relative z-[100] flex w-full items-center justify-between px-6 py-4 bg-black/15 backdrop-blur-md shadow-sm md:px-20 border-b border-white/5 h-[80px]">
+          <a href="#home" className="z-10 relative">
+            <img src={ASSETS.logo} alt="Hekayat" className="h-10 md:h-12 w-auto object-contain" />
+          </a>
+
+          <button className="lg:hidden text-white p-2 z-10 relative" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={isMenuOpen ? "M6 18L18 6M6 6l12 12" : "M4 6h16M4 12h16m-7 6h7"} />
+            </svg>
           </button>
-          <nav className={`${isMenuOpen ? 'flex' : 'hidden'} lg:flex absolute lg:relative top-full left-0 w-full lg:w-auto flex-col lg:flex-row items-center bg-black/90 lg:bg-transparent p-6 lg:p-0 gap-8 shadow-xl lg:shadow-none z-[90]`}>
-            {NAV_LINKS.map((label) => (<a key={label} href="#" className="text-sm font-black text-white/90 uppercase tracking-tighter hover:text-[#c47529] transition-all">{label}</a>))}
+
+          <nav className={`${isMenuOpen ? 'flex' : 'hidden'} absolute top-full left-0 w-full flex-col bg-black/95 p-6 shadow-xl gap-8 z-[90] lg:flex lg:w-auto lg:flex-row lg:bg-transparent lg:p-0 lg:shadow-none lg:absolute lg:top-1/2 lg:left-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2`}>
+            {NAV_LINKS.map((link) => (
+              <a 
+                key={link.label} 
+                href={link.href} 
+                onClick={() => setIsMenuOpen(false)} 
+                className="text-sm font-black text-white/90 uppercase tracking-tighter hover:text-[#c47529] transition-all"
+              >
+                {link.label}
+              </a>
+            ))}
           </nav>
-          <div className="hidden lg:flex items-center gap-4">
-            <button className="rounded-2xl border border-white/40 px-7 py-2.5 text-xs font-black uppercase text-white hover:bg-white/10 transition-colors">Create account</button>
-            <button className="rounded-2xl bg-[#c47529] px-7 py-2.5 text-xs font-black uppercase text-white shadow-lg transition-transform hover:scale-105">Log in</button>
+
+          <div className="hidden lg:flex items-center gap-4 z-10 relative">
+            <a href="/auth" className="rounded-2xl border border-white/40 px-7 py-2.5 text-xs font-black uppercase text-white hover:bg-white/10 transition-colors">
+             S'inscrire
+            </a>
+            <a href="/auth" className="rounded-2xl bg-[#c47529] px-7 py-2.5 text-xs font-black uppercase text-white shadow-lg transition-transform hover:scale-105">
+             Se connecter
+            </a>
           </div>
         </header>
 
-        {/* التيكست والـ Buttons محطوطين فـ السنتر وفوق الـ الخلفية السحرية نيشان بصيغة هماوية */}
         <main className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 text-center pb-20">
-          <motion.span initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="mb-6 inline-flex rounded-full bg-[#c47529] px-8 py-2 text-[10px] md:text-xs font-black text-white shadow-xl uppercase tracking-widest">For children aged 5 to 10</motion.span>
-          <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }} className="max-w-5xl text-3xl md:text-5xl lg:text-[72px] font-black leading-tight text-white uppercase italic tracking-tighter md:leading-[1.1] drop-shadow-md" style={{ fontFamily: "'IM FELL English SC', serif" }}>Turn language learning into an <br className="hidden md:block" /> exciting adventure</motion.h1>
-          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.9 }} className="mt-6 max-w-2xl text-lg md:text-xl font-medium text-white/90 drop-shadow-sm">Fun stories and quizzes to help kids learn languages easily.</motion.p>
+          <motion.span initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="mb-6 inline-flex rounded-full bg-[#c47529] px-8 py-2 text-[10px] md:text-xs font-black text-white shadow-xl uppercase tracking-widest">Adapté aux enfants et préadolescents.</motion.span>
+          <motion.h1 initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }} className="max-w-5xl text-3xl md:text-5xl lg:text-[63px] font-black leading-tight text-white uppercase  tracking-tighter md:leading-[1.1] drop-shadow-md" style={{ fontFamily: "'IM FELL English SC', serif" }}>Transformez <br />la lecture en une aventure passionnante ! </motion.h1>
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.9 }} style={{ fontFamily: "'poppins', sans-serif" }}  className="mt-6 max-w-2xl text-lg  md:text-2xl whitespace-nowrap font-medium text-white/90 drop-shadow-sm">Première plateforme interactive d'histoires au Maroc</motion.p>
           <motion.div initial={{ opacity: 20, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.1 }} className="mt-10 flex flex-wrap justify-center gap-4 md:gap-6">
-            <button className="inline-flex items-center gap-3 bg-[#c47529] text-white px-10 py-4 rounded-2xl font-black uppercase shadow-2xl transition-transform hover:scale-105 italic">HOW IT WORKS <img src={ASSETS.arrowRight} className="h-5 w-5 invert" alt="" /></button>
-            <button className="inline-flex items-center gap-3 bg-white border-2 border-white text-[#7a6657] px-10 py-4 rounded-2xl font-black uppercase shadow-lg italic transition-colors hover:bg-gray-50">FREE TRIAL <img src={ASSETS.playIcon} className="h-5 w-5 opacity-40" alt="" /></button>
+            <a href="#how-it-works" className="inline-flex items-center gap-3 bg-[#c47529] text-white px-10 py-4 rounded-2xl font-black uppercase shadow-2xl transition-transform hover:scale-105 ">
+              Comment ça fonctionne <img src={ASSETS.arrowRight} className="h-5 w-5 invert" alt="" />
+            </a>
+            <a href="/auth" className="inline-flex items-center gap-3 bg-white border-2 border-white text-[#7a6657] px-10 py-4 rounded-2xl font-black uppercase shadow-lg  transition-colors hover:bg-gray-50">
+              Commencez ici <img src={ASSETS.playIcon} className="h-5 w-5 opacity-40" alt="" />
+            </a>
           </motion.div>
         </main>
       </motion.section>
 
-      {/* SECTIONS 2 & 3 */}
-      {/* ✅ الهبطة ممسوحة وسلسة 100% بدون أي خط فاصل مشوش بصرياً */}
-      <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true, margin: "-80px" }} transition={{ duration: 0.8 }} className="relative bg-gradient-to-b from-[#fffcf1] via-[#fffcf1] to-[#fff9e5]">
-        <div className="pointer-events-none absolute inset-0" aria-hidden><img src={ASSETS.sectionBackground} alt="" className="h-full w-full object-cover opacity-60" /></div>
+      <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true, margin: "-80px" }} transition={{ duration: 0.8 }} className="relative bg-gradient-to-b from-[#fffcf1] via-[#fffcf1] to-[#fffcf1]">
 
         {/* SECTION 2: Problem */}
-        <motion.section id="how-it-works" className="relative z-10 mx-auto flex max-w-[1280px] flex-col items-center gap-12 px-6 py-20 md:flex-row md:items-center md:justify-between md:gap-16 md:px-20 md:py-28 lg:py-32" initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger}>
-          <motion.div variants={fadeInUp} className="max-w-[731px] flex-1 text-left">
-            <span className="mb-6 inline-flex rounded-full border border-white bg-[#c47529] px-6 py-1 text-2xl text-white shadow-[0_0_54px_rgba(218,170,69,0.4)]">About</span>
-            <h2 className="text-3xl font-normal uppercase leading-tight text-[#3b1b0d] sm:text-4xl lg:text-[48px] lg:leading-[52px]" style={{ fontFamily: "'IM FELL English SC', serif" }}>A new way to learn</h2>
-            <p className="mt-4 text-lg leading-[29px] text-[#3b1b0d] md:text-xl">Children quickly lose focus with traditional learning methods. Hikayat turns learning into an active experience where kids read, answer, and play at the same time.</p>
+        <motion.section id="how-it-works" className="relative z-10 mx-auto flex max-w-[1280px] flex-col items-center gap-16 px-6 py-20 md:flex-row md:items-center md:justify-between md:gap-20 lg:gap-32 md:px-20 md:py-28 lg:py-32" initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger}>
+          <motion.div variants={fadeInUp} className="max-w-[550px] flex-1 text-left">
+            <span className="mb-6 inline-flex rounded-full border border-white bg-[#c47529] font-black  px-6 py-1 md:text-base text-white shadow-[0_0_54px_rgba(218,170,69,0.4)]">À PROPOS</span>
+            <h2 className="text-3xl font-normal uppercase leading-tight text-[#3b1b0d] sm:text-4xl lg:text-[48px] lg:leading-[45px]" style={{ fontFamily: "'IM FELL English SC', serif" }}>La lecture innovante</h2>
+            <p className="mt-4 text-lg  leading-[29px] text-[#3b1b0d] md:text-xl" style={{ fontFamily: "'atlan', sans-serif" }} >Face aux distractions, les méthodes traditionnelles ne suffisent plus, Hikayat est la première plateforme interactive de contes au Maroc.
+            Nous transformons la lecture en une aventure active où l'enfant lit, répond et joue en même temps, pour lui donner le goût de lire grâce à une expérience 100% interactive.</p>
           </motion.div>
-          <motion.div variants={fadeInUp} className="flex w-full flex-1 items-center justify-center md:justify-end">
+          <motion.div variants={fadeInUp} className="flex w-full flex-1 items-center justify-center lg:justify-end">
             <ul className="relative flex h-[280px] w-full max-w-[490px] items-center justify-center sm:h-[350px]">
               {ASSETS.section2Books.map((src, index) => (
-                <motion.li key={index} initial={{ opacity: 0, x: 40, rotate: -30 }} whileInView={{ opacity: 1, x: 0, rotate: -21.65 }} viewport={{ once: true }} transition={{ delay: 0.15 + index * 0.08, duration: 0.8, type: "spring", stiffness: 50 }} className="absolute origin-bottom" style={{ left: `${index * 34}px` }}>
-                  <img src={src} alt="preview" className="h-[200px] w-[160px] object-contain drop-shadow-xl sm:h-[285px] sm:w-[229px]" />
+                <motion.li key={index} initial={{ opacity: 0, x: 40, rotate: -30 }} whileInView={{ opacity: 1, x: 0, rotate: -21.65 }} viewport={{ once: true }} transition={{ delay: 0.15 + index * 0.08, duration: 0.8, type: "spring", stiffness: 50 }} className="absolute origin-bottom" style={{ left: `${index * 90}px` }}>
+                  <img src={src} alt="preview" className="h-[200px] w-[600px] object-contain drop-shadow-xl sm:h-[285px] sm:w-[229px]" />
                 </motion.li>
               ))}
             </ul>
           </motion.div>
         </motion.section>
 
-        {/* SECTION 3: THE PROCESS */}
-        <motion.section className="relative z-10 mx-auto max-w-[1280px] px-6 pb-24 pt-8 md:px-20 md:pb-32" initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger}>
+        <motion.section id="process" className="relative z-10 mx-auto max-w-[1280px] px-6 pb-24 pt-8 md:px-20 md:pb-32" initial="hidden" whileInView="visible" viewport={{ once: true, margin: "-100px" }} variants={stagger}>
           <motion.div variants={fadeInUp} className="mx-auto max-w-[790px] text-center mb-16">
-            <span className="mb-6 inline-flex rounded-full border border-white bg-[#c47529] px-6 py-1 text-2xl text-white shadow-[0_0_50px_rgba(218,170,69,0.4)]">The process</span>
-            <h2 className="text-3xl font-normal uppercase leading-tight text-[#3b1b0d] sm:text-4xl lg:text-[48px] lg:leading-[52px]" style={{ fontFamily: "'IM FELL English SC', serif" }}>A simple and effective journey</h2>
+            <span className="mb-6 inline-flex rounded-full border border-white bg-[#c47529] font-black  px-6 py-1 md:text-base text-white shadow-[0_0_50px_rgba(218,170,69,0.4)]">LE PROCESSUS</span>
+            <h2 className="text-3xl font-normal uppercase leading-tight text-[#3b1b0d] sm:text-4xl lg:text-[48px] lg:leading-[52px]" style={{ fontFamily: "'IM FELL English SC', serif" }}>Un parcours simple et efficace</h2>
           </motion.div>
 
           <motion.div variants={fadeInUp} className="relative mx-auto mt-16 w-full max-w-[1055px] overflow-x-auto px-2 md:overflow-visible md:px-0">
             <div className="relative mx-auto w-max min-w-full py-20 sm:py-28">
-              {/* الكتب */}
               <ul className="relative flex items-center justify-center">
                 {ASSETS.processBooks.map((src, index) => (
                   <motion.li
@@ -263,109 +232,114 @@ export default function HekayatHeroSection() {
                 ))}
               </ul>
 
-              {/* الباجات */}
-              {PROCESS_STEPS.map((item, index) => (
-                <motion.div
-                  key={item.step}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: 0.4 + index * 0.1 }}
-                  className={`absolute z-50 flex -translate-x-1/2 flex-col items-center gap-2 ${
-                    item.position === "top" ? "top-0" : "bottom-0"
-                  }`}
-                  style={{ left: `${item.leftPercent}%` }}
-                >
-                  {item.position === "top" && (
-                    <div className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border-2 border-[#c47529] bg-white px-4 py-1.5 text-[10px] md:text-sm font-black text-[#c47529] shadow-md uppercase">
-                      <img src={item.icon} alt="" className="h-4 w-4" /> {item.label}
-                    </div>
-                  )}
-
-                  <div
-                    className="flex items-center justify-center rounded-full font-black text-white text-2xl sm:text-3xl shadow-lg"
-                    style={{
-                      width: 64,
-                      height: 64,
-                      background: "radial-gradient(circle at 35% 35%, #e8922a, #c47529 60%, #9a5a1a)",
-                      border: "4px solid white",
-                      boxShadow: "0 4px 20px rgba(196,117,41,0.5)",
-                    }}
+              {PROCESS_STEPS.map((item, index) => {
+                const IconComponent = item.icon; // 🌟 كنقراو المكون ديال الأيقونة 🌟
+                return (
+                  <motion.div
+                    key={item.step}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: 0.4 + index * 0.1 }}
+                    className={`absolute z-50 flex -translate-x-1/2 flex-col items-center gap-2 ${
+                      item.position === "top" ? "top-0" : "bottom-0"
+                    }`}
+                    style={{ left: `${item.leftPercent}%` }}
                   >
-                    {item.step}
-                  </div>
+                    {item.position === "top" && (
+                      <div className="w-max inline-flex items-center justify-center gap-2.5 rounded-full border-2 border-[#c47529] bg-white px-5 py-1.5 text-[10px] md:text-sm font-black text-[#c47529] shadow-md uppercase">
+                        <IconComponent className="h-4 w-4 shrink-0" /> 
+                        <span>{item.label}</span>
+                      </div>
+                    )}
 
-                  {item.position === "bottom" && (
-                    <div className="inline-flex items-center gap-2 whitespace-nowrap rounded-full border-2 border-[#c47529] bg-white px-4 py-1.5 text-[10px] md:text-sm font-black text-[#c47529] shadow-md uppercase">
-                      <img src={item.icon} alt="" className="h-4 w-4" /> {item.label}
+                    <div
+                      className="flex items-center justify-center rounded-full font-black text-white text-2xl sm:text-3xl shadow-lg shrink-0"
+                      style={{
+                        width: 64,
+                        height: 64,
+                        background: "radial-gradient(circle at 35% 35%, #e8922a, #c47529 60%, #9a5a1a)",
+                        border: "4px solid white",
+                        boxShadow: "0 4px 20px rgba(196,117,41,0.5)",
+                      }}
+                    >
+                      {item.step}
                     </div>
-                  )}
-                </motion.div>
-              ))}
+
+                    {item.position === "bottom" && (
+                      <div className="w-max inline-flex items-center justify-center gap-2.5 rounded-full border-2 border-[#c47529] bg-white px-5 py-1.5 text-[10px] md:text-sm font-black text-[#c47529] shadow-md uppercase">
+                        <IconComponent className="h-4 w-4 shrink-0" /> 
+                        <span>{item.label}</span>
+                      </div>
+                    )}
+                  </motion.div>
+                );
+              })}
             </div>
           </motion.div>
         </motion.section>
       </motion.div>
 
-      {/* SECTION 4: Feedbacks */}
       <motion.section
-        id="feedbacks"
-        className="relative z-10 bg-white px-6 py-16 md:px-20 md:py-20"
+        id="mission"
+        className="relative z-10 w-full py-24 bg-gradient-to-b from-[#fffcf1] to-[#fdf8eb] overflow-hidden"
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true, margin: "-80px" }}
         variants={stagger}
       >
-        <motion.div variants={fadeInUp} className="mx-auto flex max-w-[1280px] flex-col items-center gap-8 md:gap-16">
-          <motion.div className="flex max-w-[520px] flex-col items-center gap-6 text-center md:gap-8">
-            <span className="inline-flex rounded-full bg-[#c47529] px-8 py-2 text-xl font-black text-white uppercase tracking-wider shadow-sm">
-  Feedbacks
-</span>
-            <h2
-              className="w-full text-3xl uppercase leading-[40px] text-[#3b1b0d] sm:text-4xl lg:text-[48px]"
-              style={{ fontFamily: "'IM FELL English SC', serif" }}
+        <div className="max-w-[1200px] mx-auto px-6 md:px-12 relative z-10">
+          
+          <div className="flex flex-col items-center text-center mb-16">
+            <motion.span 
+              variants={fadeInUp}
+              className="bg-[#c47529] text-white text-[11px] md:text-base font-black uppercase tracking-wider py-2 md:py-2.5 px-6 rounded-full mb-6 shadow-sm"
             >
-              What parents say
-            </h2>
-          </motion.div>
+              Notre mission
+            </motion.span>
+            
+            <motion.h2 
+              variants={fadeInUp}
+              className="text-3xl md:text-[44px] lg:text-[52px] leading-tight  text-[#3b1b0d] mb-6 uppercase tracking-tight" style={{ fontFamily: "'IM FELL English SC', serif" }}
+            >
+              Notre mission et nos valeurs
+            </motion.h2>
+            
+            <motion.p 
+              variants={fadeInUp}
+              className="text-[#7a6657] text-base md:text-lg max-w-2xl font-medium leading-relaxed" style={{ fontFamily: "'atlan', sans-serif" }} >
+              Le Maroc a une riche tradition de conteurs. Hikayat aide à la préserver et à la rendre accessible aux enfants d'aujourd'hui
+            </motion.p>
+          </div>
 
-          <motion.div
-            variants={stagger}
-            className="flex w-full gap-6 overflow-x-auto pb-4 md:gap-8 md:overflow-visible md:pb-0"
-          >
-            {TESTIMONIALS.map((item, index) => (
-              <motion.article
-                key={index}
-                variants={fadeInUp}
-                className={`flex shrink-0 flex-col gap-4 rounded-[32px] p-8 shadow-[0_4px_4px_rgba(0,0,0,0.1)] ${
-                  item.featured
-                    ? "w-[min(100%,624px)] bg-[#c47529] text-white md:min-w-[624px]"
-                    : "w-[min(85vw,406px)] border border-[#c47529] bg-white text-[#78350f] md:min-w-[406px]"
-                }`}
-              >
-                <StarRow variant={item.featured ? "white" : "gold"} />
-                <p className="text-lg leading-[29px]">&ldquo;{item.quote}&rdquo;</p>
-                <motion.div className="mt-auto flex items-center gap-6">
-                  <img
-                    src={item.avatar}
-                    alt=""
-                    className="h-[52px] w-[52px] rounded-full object-cover"
-                  />
-                  <motion.div>
-                    <p className="text-base font-bold">{item.name}</p>
-                    <p className="text-base opacity-90">{item.role}</p>
-                  </motion.div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6 max-w-[900px] mx-auto">
+            {MISSION_VALUES.map((item, index) => {
+              const IconComponent = item.icon;
+              return (
+                <motion.div
+                  key={index}
+                  variants={fadeInUp}
+                  whileHover={{ y: -5 }}
+                  className="bg-white rounded-[28px] p-8 md:p-10 border-[1.5px] border-[#c47529]/40 hover:border-[#c47529] hover:shadow-lg transition-all duration-300 text-left"
+                >
+                  <IconComponent className="w-8 h-8 text-[#3b1b0d] mb-5" strokeWidth={1.5} />
+                  <h3 className="text-[22px] font-black text-[#3b1b0d] mb-3 tracking-tight">
+                    {item.title}
+                  </h3>
+                  <p className="text-[#7a6657] text-[15px] font-medium leading-relaxed">
+                    {item.description}
+                  </p>
                 </motion.div>
-              </motion.article>
-            ))}
-          </motion.div>
-        </motion.div>
+              );
+            })}
+          </div>
+
+        </div>
       </motion.section>
 
-      {/* SECTION 5: CTA — Start today */}
       <motion.section
         id="cta"
-        className="relative z-10 bg-white px-6 py-12 md:px-20 md:py-16"
+        className="relative z-10 bg-[#fdf8eb] px-6 pt-12 pb-24 md:px-20 md:pt-16 md:pb-32"
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true, margin: "-80px" }}
@@ -373,35 +347,32 @@ export default function HekayatHeroSection() {
       >
         <motion.div
           variants={fadeInUp}
-          className="relative mx-auto flex max-w-[1280px] flex-col overflow-hidden rounded-[32px] border border-[#c47529] bg-white p-8 md:rounded-[64px] md:p-16 lg:flex-row lg:items-center lg:justify-between"
+          className="relative mx-auto flex max-w-[1280px] flex-col rounded-[32px] border border-[#c47529] bg-white p-8 md:rounded-[64px] md:p-16 lg:flex-row lg:items-center lg:justify-between"
         >
           <motion.div className="relative z-10 flex max-w-xl flex-col items-start gap-4">
-            <span className="inline-flex rounded-full bg-[#c47529] px-6 py-1 text-base text-white">
-              Start it now
-            </span>
+            
             <h2
               className="text-2xl uppercase leading-[40px] text-[#3b1b0d] md:text-[32px]"
               style={{ fontFamily: "'IM FELL English SC', serif" }}
             >
-              Start today
+              Lancez-vous aujourd'hui.
             </h2>
-            <p className="max-w-[567px] text-lg leading-[29px] text-[#3b1b0d]">
-              Give your child a simple and fun way to learn languages with Hikayat.
-            </p>
+            <p className="max-w-[567px] text-lg leading-[29px] text-[#3b1b0d]" style={{ fontFamily: "'atlan', sans-serif" }}>
+              Offrez à votre enfant un moyen d'apprendre à lire avec Hikayat.</p>
             <motion.div className="mt-2 flex flex-wrap gap-4">
-              <button
-                type="button"
+              <a
+                href="/auth"
                 className="inline-flex items-center gap-2.5 rounded-2xl border-2 border-[#c47529] bg-[#c47529] px-8 py-4 text-base font-bold text-white transition-transform hover:scale-105"
               >
                 Create account
                 <img src={ASSETS.ctaArrow} alt="" className="h-6 w-6 invert" aria-hidden />
-              </button>
-              <button
-                type="button"
+              </a>
+              <a
+                href="/auth"
                 className="rounded-2xl border-2 border-[#c47529] bg-white px-8 py-4 text-base font-bold text-[#c47529] transition-colors hover:bg-[#c47529]/5"
               >
                 Start free trial
-              </button>
+              </a>
             </motion.div>
           </motion.div>
 
@@ -410,19 +381,17 @@ export default function HekayatHeroSection() {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.3, duration: 0.8 }}
-            className="relative mx-auto mt-8 flex h-[280px] w-full max-w-[320px] items-end justify-center lg:absolute lg:right-8 lg:top-1/2 lg:mt-0 lg:h-[500px] lg:max-w-none lg:w-[500px] lg:-translate-y-1/2"
+            className="relative mx-auto mt-8 flex h-[280px] w-full items-end justify-center z-20 pointer-events-none lg:absolute lg:-right-[-20px] lg:bottom-0 lg:mt-0 lg:h-[120%] lg:w-auto"
           >
             <img
               src={ASSETS.ctaCharacter}
-              alt="Happy child giving thumbs up"
-              className="h-full w-auto max-w-none object-contain object-bottom"
+              alt="Nanna Zahra Narrator"
+              className="h-full w-auto object-contain object-bottom drop-shadow-[0_10px_25px_rgba(0,0,0,0.15)]"
             />
           </motion.div>
         </motion.div>
       </motion.section>
 
-      {/* FOOTER */}
-      {/* ✅ الـ الفوتر محتفظ بـ الـ logo الأصلي نيت فـ بلاصتو الأوريجينال */}
       <motion.footer
         className="relative z-10 bg-[#c47529] px-6 pb-8 pt-24 text-white md:px-20 md:pt-[120px]"
         initial={{ opacity: 0, y: 32 }}
@@ -434,29 +403,32 @@ export default function HekayatHeroSection() {
           <motion.div className="flex flex-col gap-12 lg:flex-row lg:items-start lg:justify-between">
             <motion.div className="max-w-[280px] space-y-6">
               <img src={ASSETS.logo} alt="Hikayat" className="h-12 w-auto brightness-0 invert" />
-              <p className="text-base leading-8">
-                Learning languages becomes an adventure for your kids.
+              <p className="text-xl whitespace-nowrap leading-8" style={{ fontFamily: "'atlan', sans-serif" }} >
+              Lire devient une aventure pour vos enfants .
               </p>
+              
+              {/* 🌟 الأيقونات ديال السوشيال ميديا الحقيقية 🌟 */}
               <motion.div className="flex gap-4">
                 <a href="#" aria-label="Facebook" className="opacity-90 transition-opacity hover:opacity-100">
-                  <img src={ASSETS.socialFacebook} alt="" className="h-6 w-6" />
+                  <Facebook className="h-6 w-6" />
                 </a>
                 <a href="#" aria-label="Instagram" className="opacity-90 transition-opacity hover:opacity-100">
-                  <img src={ASSETS.socialInstagram} alt="" className="h-6 w-6" />
+                  <Instagram className="h-6 w-6" />
                 </a>
                 <a href="#" aria-label="LinkedIn" className="opacity-90 transition-opacity hover:opacity-100">
-                  <img src={ASSETS.socialLinkedin} alt="" className="h-6 w-6" />
+                  <Linkedin className="h-6 w-6" />
                 </a>
               </motion.div>
+
             </motion.div>
 
             <motion.div className="flex flex-wrap gap-12 md:gap-24 lg:gap-40">
               <motion.div>
-                <p className="mb-5 text-base font-bold">Product</p>
+                <p className="mb-5 text-base font-bold">Blog</p>
                 <ul className="space-y-5 text-base">
                   {FOOTER_LINKS.product.map((link) => (
                     <li key={link.label}>
-                      <a href={link.href} className="opacity-90 hover:opacity-100">
+                      <a href={link.href} className="opacity-90 hover:opacity-100" style={{ fontFamily: "'atlan', sans-serif" }}>
                         {link.label}
                       </a>
                     </li>
@@ -464,8 +436,8 @@ export default function HekayatHeroSection() {
                 </ul>
               </motion.div>
               <motion.div>
-                <p className="mb-5 text-base font-bold">Company</p>
-                <ul className="space-y-5 text-base">
+                <p className="mb-5 text-base font-bold" style={{ fontFamily: "'atlan', sans-serif" }} >Hikayat</p>
+                <ul className="space-y-5 text-base" style={{ fontFamily: "'atlan', sans-serif" }}>
                   {FOOTER_LINKS.company.map((link) => (
                     <li key={link.label}>
                       <a href={link.href} className="opacity-90 hover:opacity-100">
@@ -476,8 +448,8 @@ export default function HekayatHeroSection() {
                 </ul>
               </motion.div>
               <motion.div>
-                <p className="mb-5 text-base font-bold">Legal</p>
-                <ul className="space-y-5 text-base">
+                <p className="mb-5 text-base font-bold" style={{ fontFamily: "'atlan', sans-serif" }} >Confidentialité</p>
+                <ul className="space-y-5 text-base" style={{ fontFamily: "'atlan', sans-serif" }}>
                   {FOOTER_LINKS.legal.map((link) => (
                     <li key={link.label}>
                       <a href={link.href} className="opacity-90 hover:opacity-100">
@@ -494,7 +466,7 @@ export default function HekayatHeroSection() {
             <img src={ASSETS.footerDivider} alt="" className="h-px w-full opacity-40" aria-hidden />
           </motion.div>
 
-          <p className="text-base">© 2026 Hikayat. All rights reserved.</p>
+          <p className="text-xl" style={{ fontFamily: "'atlan', sans-serif" }} >© 2026 Hikayat. Tous droits réservés.</p>
         </motion.div>
       </motion.footer>
     </main>

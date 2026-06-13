@@ -245,6 +245,9 @@ export default function StoriesLibrary() {
                   const borderClass = isNew ? "border-[#22c55e]" : isInProgress ? "border-[#f59e0b]" : "border-[#eab308]";
                   const btnLabel = isNew ? "Commencer à lire" : isInProgress ? "Continuer" : "Relire";
 
+                  // 🌟 هنا درنا المتغير د الترجمة باش الواجهة تولي فرنسية بلا ما نقيسو الفلتر
+                  const displayStatus = isNew ? "NOUVEAU" : isInProgress ? "EN COURS" : "TERMINÉ";
+
                   return (
                     <motion.article 
                       key={story.id}
@@ -263,9 +266,11 @@ export default function StoriesLibrary() {
 
                       <div className="absolute inset-0 p-5 flex flex-col justify-end items-start text-white text-left">
                         <div className="flex items-center gap-1.5 mb-2">
-                          <span className="bg-white/20 backdrop-blur-md text-[9px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">Arabic</span>
+                          {/* 🌟 رديناها ARABE */}
+                          <span className="bg-white/20 backdrop-blur-md text-[9px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">ARABE</span>
+                          {/* 🌟 عيطنا على الحالة المترجمة هنا */}
                           <span className="bg-white/20 backdrop-blur-md text-[9px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                            {story.status?.toUpperCase()}
+                            {displayStatus}
                           </span>
                         </div>
                         
@@ -292,7 +297,7 @@ export default function StoriesLibrary() {
             {/* LOAD MORE BUTTON */}
             {selectedLang === "arabic" && filteredStories.length > 0 && (
               <button className="mt-8 border-2 border-[#f3eee0] text-[#7a6657] hover:bg-[#fffcf1] transition-colors font-black text-xs uppercase tracking-wider px-12 py-3 rounded-2xl shadow-sm">
-                Load More
+                Voir plus
               </button>
             )}
 
@@ -303,7 +308,6 @@ export default function StoriesLibrary() {
     </div>
   );
 }
-
 
 
 // 'use client'
